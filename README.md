@@ -17,6 +17,7 @@ A self-hostable, open-source inventory tracker. Scan a barcode, add or remove st
   - [Planned stack](#planned-stack)
   - [Roadmap](#roadmap)
   - [Contributing](#contributing)
+  - [Code of conduct](#code-of-conduct)
   - [Security](#security)
   - [License](#license)
 
@@ -50,6 +51,10 @@ The first milestone is a mobile-first MVP with a minimal web app. See the [roadm
 ## Contributing
 
 Contributions are welcome once the project foundations land. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+
+## Code of conduct
+
+Everyone taking part in the project is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
