@@ -1,0 +1,7 @@
+{
+  "name": "stockroom",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Self-hosted inventory and stock tracking",
+  "license": "AGPL-3.0-only"
+}
