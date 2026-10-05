@@ -45,7 +45,7 @@ Ordered, commit-sized tasks for building Stockroom up to the first demo (milesto
 _Spec: 9.3, 14._
 
 - [x] **A1** — Add root `package.json` and `pnpm-workspace.yaml` covering `apps/*` and `packages/*`. _Done when:_ `pnpm install` succeeds on the empty workspace.
-- [ ] **A2** — Pin Node and pnpm versions (`.nvmrc`, `packageManager`, `engines`). _Done when:_ versions are declared and documented in `CONTRIBUTING.md`.
+- [x] **A2** — Pin Node and pnpm versions (`.nvmrc`, `packageManager`, `engines`). _Done when:_ versions are declared and documented in `CONTRIBUTING.md`.
 - [ ] **A3** — Add Prettier config and root `format` / `format:check` scripts. _Done when:_ `pnpm format:check` passes on the whole repo.
 - [ ] **A4** — Add .NET `global.json` and `server/Directory.Build.props` (nullable enabled, warnings as errors, latest analyzers, implicit usings). _Done when:_ file exists and `dotnet --version` resolves the pinned SDK.
 - [ ] **A5** — Add a GitHub Actions workflow skeleton that runs on push and pull request. _Done when:_ workflow runs and passes (it may only run `format:check` for now).
