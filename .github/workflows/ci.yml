@@ -14,7 +14,9 @@ concurrency:
 jobs:
   format:
     name: Format check
-    runs-on: ubuntu-latest
+    # Lightweight single-CPU runner; enough for formatting. Jobs that need
+    # Docker (Testcontainers) should pin a full VM image such as ubuntu-26.04.
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
 
