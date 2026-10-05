@@ -8,5 +8,12 @@
   "engines": {
     "node": "^24.19.0",
     "pnpm": "^12.9.1"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
   }
 }
