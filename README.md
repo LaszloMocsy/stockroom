@@ -48,6 +48,10 @@ The first milestone is a mobile-first MVP with a minimal web app. See the [roadm
 - [ ] **M2 — v1.0:** full web app, locations and transfers, reports, audit log, CSV import
 - [ ] **M3 — Polish:** managed-hosting template, offline queue, labels, SSO
 
+## Documentation
+
+- [Configuration](docs/configuration.md): the `STOCKROOM_*` environment variables.
+
 ## Contributing
 
 Contributions are welcome once the project foundations land. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.

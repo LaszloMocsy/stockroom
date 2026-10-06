@@ -28,6 +28,7 @@ Ordered, commit-sized tasks for building Stockroom up to the first demo (milesto
 - Tests use **real PostgreSQL** (Testcontainers), not mocks of the database.
 - API changes are **additive** within `/api/v1`; regenerate and commit the OpenAPI snapshot and API client whenever the API changes.
 - No secrets in the repo. Configuration through `STOCKROOM_*` environment variables.
+- Every new `STOCKROOM_*` variable gets a row in `docs/configuration.md` in the same commit that adds it.
 
 ### Task template
 
