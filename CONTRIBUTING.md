@@ -14,12 +14,31 @@ Thanks for your interest!
 2. Open an issue to discuss it before writing a large pull request.
 3. If the change affects the design, update the specification and add an entry to its changelog in the same pull request.
 
+## Tool versions
+
+The repository uses pinned tool versions:
+
+| Tool     | Version                               | Declared in                                           |
+| -------- | ------------------------------------- | ----------------------------------------------------- |
+| Node     | 24.19.x                               | `.nvmrc`, `engines.node` in `package.json`            |
+| pnpm     | 12.9.1                                | `packageManager` and `engines.pnpm` in `package.json` |
+| .NET SDK | 10.0.401 or a later 10.0 feature band | `global.json`                                         |
+
+To set them up:
+
+```sh
+nvm use               # or any version manager that reads .nvmrc
+corepack enable       # installs the pnpm version from packageManager
+pnpm install
+dotnet --version      # should print the SDK pinned in global.json
+```
+
 ## Ground rules
 
 - **Stock integrity comes first.** Quantities change only through ledger movements (see section 3.2 of the specification). Pull requests that write stock levels any other way will not be accepted.
 - Keep pull requests small and focused on one change.
 - Add or update tests with the behaviour they verify.
-- Follow the existing code style; `.editorconfig` applies to all files.
+- Follow the existing code style; `.editorconfig` applies to all files. Run `pnpm format` before committing; CI checks it with `pnpm format:check`.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages, for example `feat(stock): add void movement`.
 
 ## Licensing of contributions

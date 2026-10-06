@@ -44,13 +44,13 @@ Ordered, commit-sized tasks for building Stockroom up to the first demo (milesto
 
 _Spec: 9.3, 14._
 
-- [ ] **A1** — Add root `package.json` and `pnpm-workspace.yaml` covering `apps/*` and `packages/*`. _Done when:_ `pnpm install` succeeds on the empty workspace.
-- [ ] **A2** — Pin Node and pnpm versions (`.nvmrc`, `packageManager`, `engines`). _Done when:_ versions are declared and documented in `CONTRIBUTING.md`.
-- [ ] **A3** — Add Prettier config and root `format` / `format:check` scripts. _Done when:_ `pnpm format:check` passes on the whole repo.
-- [ ] **A4** — Add .NET `global.json` and `server/Directory.Build.props` (nullable enabled, warnings as errors, latest analyzers, implicit usings). _Done when:_ file exists and `dotnet --version` resolves the pinned SDK.
-- [ ] **A5** — Add a GitHub Actions workflow skeleton that runs on push and pull request. _Done when:_ workflow runs and passes (it may only run `format:check` for now).
-- [ ] **A6** — Add a pull request template and issue templates (bug report, feature request). _Done when:_ templates are present under `.github/`.
-- [ ] **A7** — Add `CODE_OF_CONDUCT.md` (Contributor Covenant) and link it from `README.md`. _Done when:_ file exists and is linked.
+- [x] **A1** — Add root `package.json` and `pnpm-workspace.yaml` covering `apps/*` and `packages/*`. _Done when:_ `pnpm install` succeeds on the empty workspace.
+- [x] **A2** — Pin Node and pnpm versions (`.nvmrc`, `packageManager`, `engines`). _Done when:_ versions are declared and documented in `CONTRIBUTING.md`.
+- [x] **A3** — Add Prettier config and root `format` / `format:check` scripts. _Done when:_ `pnpm format:check` passes on the whole repo.
+- [x] **A4** — Add .NET `global.json` and `server/Directory.Build.props` (nullable enabled, warnings as errors, latest analyzers, implicit usings). _Done when:_ file exists and `dotnet --version` resolves the pinned SDK.
+- [x] **A5** — Add a GitHub Actions workflow skeleton that runs on push and pull request. _Done when:_ workflow runs and passes (it may only run `format:check` for now).
+- [x] **A6** — Add a pull request template and issue templates (bug report, feature request). _Done when:_ templates are present under `.github/`.
+- [x] **A7** — Add `CODE_OF_CONDUCT.md` (Contributor Covenant) and link it from `README.md`. _Done when:_ file exists and is linked.
 
 ## B. Backend foundation
 

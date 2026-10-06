@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format check
+    # Lightweight single-CPU runner; enough for formatting. Jobs that need
+    # Docker (Testcontainers) should pin a full VM image such as ubuntu-26.04.
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      # Uses the pnpm version from packageManager in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
