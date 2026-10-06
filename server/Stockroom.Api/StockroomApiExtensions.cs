@@ -2,6 +2,7 @@ using System.Text.Json;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Api.Logging;
+using Stockroom.Api.OpenApi;
 using Stockroom.Core;
 
 namespace Stockroom.Api;
@@ -23,6 +24,7 @@ internal static class StockroomApiExtensions
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
 
         builder.Services.AddStockroomErrorHandling();
+        builder.Services.AddStockroomOpenApi();
         return builder;
     }
 

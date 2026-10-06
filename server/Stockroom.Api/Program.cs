@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Stockroom.Api;
 using Stockroom.Api.Configuration;
+using Stockroom.Api.OpenApi;
 
 try
 {
@@ -15,8 +16,14 @@ try
 
     app.UseStockroomApi();
 
+    app.MapStockroomOpenApi();
+
     // Liveness: the process is up and serving requests. Dependency checks belong in /readyz.
-    app.MapGet("/healthz", () => TypedResults.Ok());
+    app.MapGet("/healthz", () => TypedResults.Ok())
+        .WithName("GetHealthz")
+        .WithTags("Health")
+        .WithSummary("Liveness probe")
+        .WithDescription("Returns 200 while the process is up and serving requests. Does not check dependencies.");
 
     app.Run();
     return 0;
