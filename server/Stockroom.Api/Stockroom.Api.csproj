@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Stockroom.Core\Stockroom.Core.csproj" />
+    <ProjectReference Include="..\Stockroom.Data\Stockroom.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Stockroom.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.17.14" />
+  </ItemGroup>
+</Project>

@@ -2,8 +2,8 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.3                                              |
-| **Date**    | 2026-10-05                                              |
+| **Status**  | Draft v0.5                                              |
+| **Date**    | 2026-10-06                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
 > This document is versioned in itself. See the [Changelog](#19-changelog) at the bottom for what changed in each revision.
@@ -77,11 +77,23 @@ A viewer/read-only role is a possible later addition (see [Roadmap](#15-roadmap)
 
 ### 3.1 Entities
 
+#### Identifiers
+
+Every entity that appears in an API response carries two IDs:
+
+- **`id` — internal, UUID v7.** Primary key and the target of foreign keys. Time-sortable, so inserts stay index-friendly. It never leaves the server: no API response, URL, or object-storage key contains it.
+- **`public_id` — public, UUID v4.** Unique, immutable, and random. It is the only ID clients see, so it is used in routes, DTOs, and storage keys. It leaks nothing about creation order or volume. The API resolves it to the internal `id` at the edge.
+
+Entities with a `public_id`: Product, Stock movement, User, and (P1) Location, Category, and Audit event. Entities never addressed through the API (Stock level, Refresh token, Settings, Product barcode) carry only the internal `id`, or a natural key where one exists.
+
+Products also have **external identifiers** that people and scanners use: the `sku` (human-readable) and the `barcodes`. These are business data, not keys. They are not interchangeable with `id` or `public_id`.
+
 #### Product
 
 | Field                                    | Type                | Stage | Notes                                                                                 |
 | ---------------------------------------- | ------------------- | :---: | ------------------------------------------------------------------------------------- |
-| `id`                                     | UUID (v7)           |  MVP  | Internal primary key.                                                                 |
+| `id`                                     | UUID (v7)           |  MVP  | Internal primary key. Never exposed.                                                  |
+| `public_id`                              | UUID (v4), unique   |  MVP  | Public ID used in the API.                                                            |
 | `sku`                                    | string, unique      |  MVP  | Human-readable ID. Auto-generated if omitted (e.g. `SR-000123`).                      |
 | `name`                                   | string, required    |  MVP  |                                                                                       |
 | `description`                            | text, nullable      |  MVP  |                                                                                       |
@@ -102,22 +114,23 @@ A viewer/read-only role is a possible later addition (see [Roadmap](#15-roadmap)
 
 #### Stock movement (the ledger, append-only)
 
-| Field                       | Type             | Notes                                                                                     |
-| --------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
-| `id`                        | UUID (v7)        | Time-sortable.                                                                            |
-| `product_id`, `location_id` | FK               |                                                                                           |
-| `type`                      | enum             | `receive`, `issue`, `adjust`, `initial`, `void`; later `transfer_out`/`transfer_in`.      |
-| `delta`                     | integer          | Signed change applied to quantity.                                                        |
-| `quantity_after`            | integer          | Resulting quantity at that location (makes audits and charts cheap).                      |
-| `reason`                    | enum             | `purchase`, `sale`, `return`, `damaged`, `lost`, `found`, `correction`, `count`, `other`. |
-| `note`                      | text, nullable   | Free text.                                                                                |
-| `reference`                 | string, nullable | External ref (order number, delivery note).                                               |
-| `voids_movement_id`         | UUID, nullable   | Set on `void` movements; points at the movement being reversed.                           |
-| `idempotency_key`           | string, nullable | Client-supplied; unique per actor; prevents double-submits on flaky connections.          |
-| `actor_id`                  | FK → user        |                                                                                           |
-| `created_at`                | timestamp        | Server-assigned, immutable.                                                               |
+| Field                       | Type              | Notes                                                                                           |
+| --------------------------- | ----------------- | ----------------------------------------------------------------------------------------------- |
+| `id`                        | UUID (v7)         | Internal primary key. Time-sortable. Never exposed.                                             |
+| `public_id`                 | UUID (v4), unique | Public ID used in the API.                                                                      |
+| `product_id`, `location_id` | FK                |                                                                                                 |
+| `type`                      | enum              | `receive`, `issue`, `adjust`, `initial`, `void`; later `transfer_out`/`transfer_in`.            |
+| `delta`                     | integer           | Signed change applied to quantity.                                                              |
+| `quantity_after`            | integer           | Resulting quantity at that location (makes audits and charts cheap).                            |
+| `reason`                    | enum              | `purchase`, `sale`, `return`, `damaged`, `lost`, `found`, `correction`, `count`, `other`.       |
+| `note`                      | text, nullable    | Free text.                                                                                      |
+| `reference`                 | string, nullable  | External ref (order number, delivery note).                                                     |
+| `voids_movement_id`         | UUID, nullable    | Set on `void` movements; points at the movement being reversed (the API shows its `public_id`). |
+| `idempotency_key`           | string, nullable  | Client-supplied; unique per actor; prevents double-submits on flaky connections.                |
+| `actor_id`                  | FK → user         |                                                                                                 |
+| `created_at`                | timestamp         | Server-assigned, immutable.                                                                     |
 
-**User** — `id`, `username`/`email`, `display_name`, `password_hash`, `role` (`ADMIN` | `STAFF`), `disabled_at`, `last_login_at`.
+**User** — `id`, `public_id`, `username`/`email`, `display_name`, `password_hash`, `role` (`ADMIN` | `STAFF`), `disabled_at`, `last_login_at`.
 
 **Refresh token** — hashed at rest, per device, revocable. (Long-lived personal API tokens are P1.)
 
@@ -256,7 +269,7 @@ Two complementary layers:
 
 Requirements:
 
-- **P1** Every write action records actor, timestamp, action, entity type/id, and a JSON diff of changed fields, plus IP and user-agent for security-relevant events.
+- **P1** Every write action records actor, timestamp, action, entity type and public ID, and a JSON diff of changed fields, plus IP and user-agent for security-relevant events.
 - **P1** Audit events and movements cannot be edited or deleted through the app or API.
 - **P1** Searchable/filterable audit UI (ADMIN only) and CSV/JSON export.
 - **P2** Tamper-evidence via a hash chain verified by a CLI command.
@@ -336,14 +349,14 @@ The backend exposes an `IFileStorage` abstraction with two providers, selected b
 Rules that keep both providers interchangeable:
 
 - Buckets are treated as **private**. The API either streams the object or hands out a **presigned URL**. Some providers (including Railway Buckets) do not offer public buckets at all.
-- Stored objects are addressed by an opaque key (`products/{id}/{uuid}.webp`); the database stores only the key.
+- Stored objects are addressed by an opaque key (`products/{product_public_id}/{uuid}.webp`); the database stores only the key.
 - Do not rely on versioning, object lock, server-side encryption, or lifecycle rules. Some providers lack them. Backup retention is implemented by the app's own job.
 - Images are validated and re-encoded server-side, and thumbnails are generated at upload.
 - Configuration uses the standard S3 variables: endpoint, region, bucket, access key ID, secret access key, path-style flag.
 
 ## 10. API
 
-REST/JSON, versioned under `/api/v1`, documented via OpenAPI at `/api/docs`. Representative endpoints:
+REST/JSON, versioned under `/api/v1`, described by an OpenAPI document at `/api/v1/openapi.json` (served in every environment, since clients are generated from it). An interactive API reference is served at `/api/docs` in the Development environment only. In every route and payload, `:id` and `*_id` fields are **public IDs** (UUID v4, see [3.1](#31-entities)); internal IDs are never exposed. Representative endpoints:
 
 ```txt
 GET    /api/v1/info                        # version, min client version, setup state (public)
@@ -589,6 +602,14 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.5 — 2026-10-06
+
+- **API docs:** the interactive reference at `/api/docs` is served in the Development environment only; the OpenAPI document at `/api/v1/openapi.json` stays available everywhere (section 10).
+
+### v0.4 — 2026-10-06
+
+- **Identifiers:** every API-visible entity has an internal UUID v7 `id` (never exposed) and a public UUID v4 `public_id` (used in routes, payloads, and storage keys). SKU and barcodes remain the external product identifiers. Added the "Identifiers" subsection to 3.1 and updated sections 8, 9.4, and 10.
 
 ### v0.3 — 2026-10-05
 

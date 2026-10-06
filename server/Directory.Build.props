@@ -9,5 +9,8 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Server version, reported by GET /api/v1/info. Release builds override it with -p:Version=x.y.z. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
   </PropertyGroup>
 </Project>

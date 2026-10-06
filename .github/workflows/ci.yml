@@ -1,14 +1,20 @@
 name: CI
 
+# Pull requests cover feature branches; pushes are only built on main, so a
+# branch with an open PR does not run the same checks twice.
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # One group per PR (or per branch for main and manual runs): a new push
+  # cancels that PR's previous run.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

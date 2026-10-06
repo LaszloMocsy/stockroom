@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Stockroom.Core\Stockroom.Core.csproj" />
+  </ItemGroup>
+</Project>

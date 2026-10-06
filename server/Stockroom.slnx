@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Stockroom.Api/Stockroom.Api.csproj" />
+  <Project Path="Stockroom.Core/Stockroom.Core.csproj" />
+  <Project Path="Stockroom.Data/Stockroom.Data.csproj" />
+  <Project Path="Stockroom.Tests/Stockroom.Tests.csproj" />
+</Solution>
