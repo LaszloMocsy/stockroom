@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Stockroom.Api;
 using Stockroom.Api.Configuration;
+using Stockroom.Api.Endpoints;
 using Stockroom.Api.OpenApi;
 
 try
@@ -24,6 +25,9 @@ try
         .WithTags("Health")
         .WithSummary("Liveness probe")
         .WithDescription("Returns 200 while the process is up and serving requests. Does not check dependencies.");
+
+    var v1 = app.MapGroup("/api/v1");
+    v1.MapInfoEndpoints();
 
     app.Run();
     return 0;
