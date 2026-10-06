@@ -38,10 +38,26 @@ public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<St
         Assert.DoesNotContain(paths, p => p.StartsWith("/api/docs", StringComparison.Ordinal) || p.Contains("openapi", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task ReferenceUiIsServedAtApiDocsAndPointsAtTheDocument()
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Testing")]
+    public async Task ReferenceUiIsNotServedOutsideDevelopment(string environment)
     {
-        using var client = factory.CreateClient();
+        await using var app = StockroomApiFactory.WithEnvironment(environment);
+        using var client = app.CreateClient();
+
+        using var docs = await client.GetAsync(new Uri("/api/docs/", UriKind.Relative), Token);
+        using var document = await client.GetAsync(new Uri("/api/v1/openapi.json", UriKind.Relative), Token);
+
+        Assert.Equal(HttpStatusCode.NotFound, docs.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, document.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReferenceUiIsServedAtApiDocsInDevelopmentAndPointsAtTheDocument()
+    {
+        await using var app = StockroomApiFactory.WithEnvironment("Development");
+        using var client = app.CreateClient();
 
         // /api/docs redirects to /api/docs/, which the client follows.
         using var response = await client.GetAsync(new Uri("/api/docs", UriKind.Relative), Token);
@@ -56,8 +72,9 @@ public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<St
     [Fact]
     public async Task ReferenceUiAssetsAreServedLocally()
     {
-        // No CDN: the UI must work on a self-hosted server without internet access.
-        using var client = factory.CreateClient();
+        // No CDN: the UI must work on a development machine without internet access.
+        await using var app = StockroomApiFactory.WithEnvironment("Development");
+        using var client = app.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/api/docs/scalar.js", UriKind.Relative), Token);
 

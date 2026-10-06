@@ -2,7 +2,7 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.4                                              |
+| **Status**  | Draft v0.5                                              |
 | **Date**    | 2026-10-06                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
@@ -356,7 +356,7 @@ Rules that keep both providers interchangeable:
 
 ## 10. API
 
-REST/JSON, versioned under `/api/v1`, documented via OpenAPI at `/api/docs`. In every route and payload, `:id` and `*_id` fields are **public IDs** (UUID v4, see [3.1](#31-entities)); internal IDs are never exposed. Representative endpoints:
+REST/JSON, versioned under `/api/v1`, described by an OpenAPI document at `/api/v1/openapi.json` (served in every environment, since clients are generated from it). An interactive API reference is served at `/api/docs` in the Development environment only. In every route and payload, `:id` and `*_id` fields are **public IDs** (UUID v4, see [3.1](#31-entities)); internal IDs are never exposed. Representative endpoints:
 
 ```txt
 GET    /api/v1/info                        # version, min client version, setup state (public)
@@ -602,6 +602,10 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.5 — 2026-10-06
+
+- **API docs:** the interactive reference at `/api/docs` is served in the Development environment only; the OpenAPI document at `/api/v1/openapi.json` stays available everywhere (section 10).
 
 ### v0.4 — 2026-10-06
 
