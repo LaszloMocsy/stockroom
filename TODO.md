@@ -23,6 +23,7 @@ Ordered, commit-sized tasks for building Stockroom up to the first demo (milesto
 ### Non-negotiable rules
 
 - **Stock quantities change only through `StockService` ledger movements** (spec 3.2). No other code writes `stock_levels` or edits/deletes movements.
+- **Identifiers:** every API-visible entity has an internal UUID v7 `id` (primary and foreign keys only) and a unique public UUID v4 `public_id`. The API, routes, and storage keys use only `public_id`; DTOs never contain internal ids (spec 3.1).
 - Quantities are **whole-number integers**. Server-side authorisation on every endpoint; clients only hide UI.
 - Tests use **real PostgreSQL** (Testcontainers), not mocks of the database.
 - API changes are **additive** within `/api/v1`; regenerate and commit the OpenAPI snapshot and API client whenever the API changes.
@@ -61,7 +62,7 @@ _Spec: 6, 9.1–9.3, 10, 12.2._
 - [ ] **B3** — Add strongly typed, validated options bound from `STOCKROOM_*` environment variables (database URL, public URL, allowed CORS origins, log level). _Done when:_ startup fails with a clear message when required settings are missing; covered by a test.
 - [ ] **B4** — Add structured JSON console logging with request logging and a correlation ID. _Done when:_ requests log one JSON line each including the correlation ID.
 - [ ] **B5** — Add a global exception handler and the error envelope `{ error: { code, message, details } }`. _Done when:_ unhandled exceptions and validation failures return the envelope; covered by tests.
-- [ ] **B6** — Add `TimeProvider` and a UUID v7 generator abstraction in `Stockroom.Core`. _Done when:_ both are injectable and unit tested.
+- [ ] **B6** — Add `TimeProvider` and an ID generator abstraction in `Stockroom.Core` producing UUID v7 (internal ids) and UUID v4 (public ids). _Done when:_ all are injectable and unit tested, including v7 time-ordering and version bits for both.
 - [ ] **B7** — Generate the OpenAPI document and serve it at `/api/docs` (UI) and `/api/v1/openapi.json`. _Done when:_ the document is reachable and lists `/healthz`.
 - [ ] **B8** — Add `GET /api/v1/info` returning `{ server_version, api_version, min_client_version, setup_required }`. _Done when:_ endpoint is public, tested, and `setup_required` is a placeholder constant for now.
 - [ ] **B9** — Add the Testcontainers PostgreSQL fixture shared by integration tests. _Done when:_ a sample test starts a real PostgreSQL container and connects.
@@ -72,11 +73,11 @@ _Spec: 3.1, 3.2._
 
 - [ ] **C1** — Add EF Core with Npgsql, `StockroomDbContext`, and a design-time factory. _Done when:_ `dotnet ef migrations list` runs.
 - [ ] **C2** — Apply migrations automatically at startup and refuse to start against a newer schema. _Done when:_ both behaviours are covered by tests.
-- [ ] **C3** — Add the `Product` entity and migration (id, sku unique, name, description, min_stock, archived_at, created/updated timestamps, created_by). _Done when:_ migration applies and a repository test persists a product.
+- [ ] **C3** — Add the `Product` entity and migration (id UUID v7, public_id UUID v4 unique, sku unique, name, description, min_stock, archived_at, created/updated timestamps, created_by). _Done when:_ migration applies and a repository test persists a product.
 - [ ] **C4** — Add `ProductBarcode` (barcode unique across all products, FK to product). _Done when:_ duplicate barcodes are rejected by a database constraint, tested.
-- [ ] **C5** — Add `Location` and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration.
+- [ ] **C5** — Add `Location` (id UUID v7, unique `public_id` UUID v4) and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration with both ids.
 - [ ] **C6** — Add `StockLevel` (product, location, quantity; unique on the pair). _Done when:_ migration applies; uniqueness tested.
-- [ ] **C7** — Add `StockMovement` with all spec fields, an index on `(product_id, created_at)`, and a unique index on `(actor_id, idempotency_key)`. _Done when:_ migration applies; the idempotency uniqueness is tested.
+- [ ] **C7** — Add `StockMovement` with all spec fields (including unique `public_id`), an index on `(product_id, created_at)`, and a unique index on `(actor_id, idempotency_key)`. _Done when:_ migration applies; the idempotency uniqueness is tested.
 - [ ] **C8** — Add a `Settings` table and typed accessor with `allow_negative_stock` (default false). _Done when:_ read/write covered by a test.
 - [ ] **C9** — Add a SKU sequence and generator producing `SR-000123` style values. _Done when:_ concurrent generation yields unique values, tested.
 
@@ -84,17 +85,17 @@ _Spec: 3.1, 3.2._
 
 _Spec: 2, 4.7, 10.2, 11._
 
-- [ ] **D1** — Add ASP.NET Core Identity with EF stores and the `ADMIN` and `STAFF` roles seeded. _Done when:_ migration applies and both roles exist.
+- [ ] **D1** — Add ASP.NET Core Identity with EF stores (Guid keys, UUID v7 `id` plus a unique `public_id` UUID v4 on users) and the `ADMIN` and `STAFF` roles seeded. _Done when:_ migration applies, both roles exist, and users get both ids.
 - [ ] **D2** — Make `setup_required` in `/info` real (true when no users exist). _Done when:_ tested with and without users.
 - [ ] **D3** — Add `POST /api/v1/setup` creating the first ADMIN; reject once any user exists. _Done when:_ second call returns 409; tested.
 - [ ] **D4** — Add `POST /api/v1/auth/login` returning a short-lived access token and a refresh token. _Done when:_ valid and invalid credentials are tested.
 - [ ] **D5** — Store refresh tokens hashed, per device, and add `POST /api/v1/auth/refresh` with rotation and reuse detection. _Done when:_ reusing a rotated token revokes the chain; tested.
 - [ ] **D6** — Add `POST /api/v1/auth/logout` revoking the device's refresh token. _Done when:_ the revoked token can no longer refresh; tested.
-- [ ] **D7** — Add `GET /api/v1/me`. _Done when:_ returns id, username, display name, and role for the authenticated user.
+- [ ] **D7** — Add `GET /api/v1/me`. _Done when:_ returns `public_id` (as `id`), username, display name, and role for the authenticated user.
 - [ ] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
 - [ ] **D9** — Add rate limiting and lockout backoff on auth endpoints. _Done when:_ repeated bad logins get 429 or lockout; tested.
 - [ ] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
-- [ ] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
+- [ ] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (`:id` is the public id; display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
 - [ ] **D12** — Add configurable CORS from allowed origins (empty by default). _Done when:_ allowed and disallowed origins are tested.
 
 ## E. Stock ledger (the core)
@@ -121,7 +122,7 @@ _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 _Spec: 3.1, 4.1, 4.6, 7.1, 10._
 
 - [ ] **F1** — Add `POST /api/v1/products` (name, optional SKU, description, `min_stock`, optional barcode, optional initial quantity). _Done when:_ SKU auto-generation, duplicate SKU/barcode errors, and the `initial` movement are tested.
-- [ ] **F2** — Add `GET /api/v1/products/:id` including current quantity. _Done when:_ tested, with 404 for unknown ids.
+- [ ] **F2** — Add `GET /api/v1/products/:id` including current quantity. _Done when:_ tested, with 404 for unknown ids. `:id` is the public id; the internal id is absent from the response.
 - [ ] **F3** — Add `GET /api/v1/products` with cursor pagination and sorting. _Done when:_ tested with more than one page.
 - [ ] **F4** — Add the `q` search (name, SKU, barcode) with a trigram index. _Done when:_ partial and case-insensitive matches are tested.
 - [ ] **F5** — Add the `low_stock` and `archived` filters. _Done when:_ each filter is tested.
