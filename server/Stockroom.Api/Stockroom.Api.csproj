@@ -3,4 +3,8 @@
     <ProjectReference Include="..\Stockroom.Core\Stockroom.Core.csproj" />
     <ProjectReference Include="..\Stockroom.Data\Stockroom.Data.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Stockroom.Tests" />
+  </ItemGroup>
 </Project>

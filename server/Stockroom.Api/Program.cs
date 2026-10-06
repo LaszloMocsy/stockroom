@@ -1,13 +1,11 @@
 using Microsoft.Extensions.Options;
+using Stockroom.Api;
 using Stockroom.Api.Configuration;
-using Stockroom.Api.Logging;
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-
-    builder.Logging.AddStockroomLogging();
-    builder.Services.AddStockroomOptions();
+    builder.AddStockroomApi();
 
     var app = builder.Build();
 
@@ -15,7 +13,7 @@ try
     // the host has logged the failure with a stack trace.
     _ = app.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
 
-    app.UseStockroomRequestLogging();
+    app.UseStockroomApi();
 
     // Liveness: the process is up and serving requests. Dependency checks belong in /readyz.
     app.MapGet("/healthz", () => TypedResults.Ok());
