@@ -73,7 +73,7 @@ _Spec: 6, 9.1–9.3, 10, 12.2._
 _Spec: 3.1, 3.2._
 
 - [x] **C1** — Add EF Core with Npgsql, `StockroomDbContext`, and a design-time factory. _Done when:_ `dotnet ef migrations list` runs.
-- [ ] **C2** — Apply migrations automatically at startup and refuse to start against a newer schema. _Done when:_ both behaviours are covered by tests.
+- [x] **C2** — Apply migrations automatically at startup and refuse to start against a newer schema. _Done when:_ both behaviours are covered by tests.
 - [ ] **C3** — Add the `Product` entity and migration (id UUID v7, public_id UUID v4 unique, sku unique, name, description, min_stock, archived_at, created/updated timestamps, created_by). _Done when:_ migration applies and a repository test persists a product.
 - [ ] **C4** — Add `ProductBarcode` (barcode unique across all products, FK to product). _Done when:_ duplicate barcodes are rejected by a database constraint, tested.
 - [ ] **C5** — Add `Location` (id UUID v7, unique `public_id` UUID v4) and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration with both ids.

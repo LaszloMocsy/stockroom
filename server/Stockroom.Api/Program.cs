@@ -3,6 +3,7 @@ using Stockroom.Api;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Endpoints;
 using Stockroom.Api.OpenApi;
+using Stockroom.Data;
 
 try
 {
@@ -14,6 +15,8 @@ try
     // Fail fast with a readable message. ValidateOnStart would catch this too, but only after
     // the host has logged the failure with a stack trace.
     _ = app.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
+
+    await app.MigrateDatabaseAsync();
 
     app.UseStockroomApi();
 
@@ -29,7 +32,7 @@ try
     var v1 = app.MapGroup("/api/v1");
     v1.MapInfoEndpoints();
 
-    app.Run();
+    await app.RunAsync();
     return 0;
 }
 catch (OptionsValidationException ex) when (ex.OptionsType == typeof(StockroomOptions))
@@ -41,5 +44,13 @@ catch (OptionsValidationException ex) when (ex.OptionsType == typeof(StockroomOp
         Console.Error.WriteLine($"  - {failure}");
     }
 
+    return 1;
+}
+catch (DatabaseSchemaTooNewException ex)
+{
+    // Migrations are forward-only; the operator has to run a server at least as new as the database.
+    Console.Error.WriteLine("Stockroom cannot start because the database was created or upgraded by a newer version of Stockroom.");
+    Console.Error.WriteLine($"  Migrations unknown to this version: {string.Join(", ", ex.UnknownMigrations)}");
+    Console.Error.WriteLine("  Run the newer version, or restore a backup taken before the upgrade.");
     return 1;
 }

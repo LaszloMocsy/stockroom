@@ -14,18 +14,13 @@ public sealed class StockroomDbContextTests(PostgresFixture postgres)
     [Fact]
     public async Task TheApiContextConnectsToTheConfiguredDatabase()
     {
-        var connectionString = await postgres.CreateDatabaseAsync(Token);
-        var settings = new Dictionary<string, string?>(StockroomApiFactory.ValidSettings)
-        {
-            [StockroomOptions.DatabaseUrlKey] = connectionString,
-        };
-        await using var factory = StockroomApiFactory.WithSettings(settings);
+        await using var factory = await StockroomApiFactory.CreateAsync(postgres);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<StockroomDbContext>();
 
         Assert.True(db.Database.IsNpgsql());
         Assert.True(await db.Database.CanConnectAsync(Token));
-        Assert.Equal(connectionString, db.Database.GetConnectionString());
+        Assert.Equal(factory.Settings[StockroomOptions.DatabaseUrlKey], db.Database.GetConnectionString());
     }
 }

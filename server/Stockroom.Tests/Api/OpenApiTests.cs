@@ -1,9 +1,10 @@
 using System.Net;
 using System.Text.Json;
+using Stockroom.Tests.Infrastructure;
 
 namespace Stockroom.Tests.Api;
 
-public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<StockroomApiFactory>
+public sealed class OpenApiTests(StockroomApiFactory factory, PostgresFixture postgres) : IClassFixture<StockroomApiFactory>
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -43,7 +44,7 @@ public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<St
     [InlineData("Testing")]
     public async Task ReferenceUiIsNotServedOutsideDevelopment(string environment)
     {
-        await using var app = StockroomApiFactory.WithEnvironment(environment);
+        await using var app = await StockroomApiFactory.CreateAsync(postgres, environment);
         using var client = app.CreateClient();
 
         using var docs = await client.GetAsync(new Uri("/api/docs/", UriKind.Relative), Token);
@@ -56,7 +57,7 @@ public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<St
     [Fact]
     public async Task ReferenceUiIsServedAtApiDocsInDevelopmentAndPointsAtTheDocument()
     {
-        await using var app = StockroomApiFactory.WithEnvironment("Development");
+        await using var app = await StockroomApiFactory.CreateAsync(postgres, "Development");
         using var client = app.CreateClient();
 
         // /api/docs redirects to /api/docs/, which the client follows.
@@ -73,7 +74,7 @@ public sealed class OpenApiTests(StockroomApiFactory factory) : IClassFixture<St
     public async Task ReferenceUiAssetsAreServedLocally()
     {
         // No CDN: the UI must work on a development machine without internet access.
-        await using var app = StockroomApiFactory.WithEnvironment("Development");
+        await using var app = await StockroomApiFactory.CreateAsync(postgres, "Development");
         using var client = app.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/api/docs/scalar.js", UriKind.Relative), Token);

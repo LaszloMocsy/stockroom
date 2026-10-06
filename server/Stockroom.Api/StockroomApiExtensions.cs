@@ -38,4 +38,12 @@ internal static class StockroomApiExtensions
         app.UseStockroomErrorHandling();
         return app;
     }
+
+    /// <summary>Applies pending migrations before the server accepts requests (see <see cref="DatabaseMigrator"/>).</summary>
+    public static async Task MigrateDatabaseAsync(this WebApplication app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<StockroomDbContext>();
+        await DatabaseMigrator.MigrateAsync(db, app.Lifetime.ApplicationStopping);
+    }
 }
