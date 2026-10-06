@@ -2,4 +2,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Stockroom.Core\Stockroom.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" PrivateAssets="all" />
+    <!-- Lifts EF Core to the Design package's version; Npgsql only requires 10.0.4. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
 </Project>
