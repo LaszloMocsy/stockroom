@@ -26,7 +26,7 @@ Ordered, commit-sized tasks for building Stockroom up to the first demo (milesto
 - **Identifiers:** every API-visible entity has an internal UUID v7 `id` (primary and foreign keys only) and a unique public UUID v4 `public_id`. The API, routes, and storage keys use only `public_id`; DTOs never contain internal ids (spec 3.1).
 - Quantities are **whole-number integers**. Server-side authorisation on every endpoint; clients only hide UI.
 - Tests use **real PostgreSQL** (Testcontainers), not mocks of the database.
-- API changes are **additive** within `/api/v1`; regenerate and commit the OpenAPI snapshot and API client whenever the API changes.
+- API changes are **additive** within `/api/v1`; regenerate and commit the OpenAPI snapshot whenever the API changes. The API client's types are generated from the snapshot at build time and are not committed.
 - No secrets in the repo. Configuration through `STOCKROOM_*` environment variables.
 - Every new `STOCKROOM_*` variable gets a row in `docs/configuration.md` in the same commit that adds it.
 
@@ -148,11 +148,11 @@ _Spec: 14._
 _Spec: 9.1, 10.1, D8._
 
 - [ ] **H1** — Write the OpenAPI document to `server/openapi/openapi.v1.json` and add a test that fails if the committed file is stale. _Done when:_ the test fails after an unregistered API change.
-- [ ] **H2** — Create `packages/api-client` with type generation (openapi-typescript) and a typed fetch wrapper. _Done when:_ `pnpm --filter api-client build` produces types from the snapshot.
+- [ ] **H2** — Create `packages/api-client` with type generation (openapi-typescript) from the committed snapshot at build time, and a typed fetch wrapper. Generated files are git-ignored. _Done when:_ `pnpm --filter api-client build` produces types from the snapshot and `git status` stays clean afterwards.
 - [ ] **H3** — Add middleware to the client for the base URL, bearer token injection, and `X-Client-Version` / `X-Client-Platform` headers. _Done when:_ unit tested with a mock fetch.
 - [ ] **H4** — Add automatic token refresh with a single in-flight refresh and a retry of the original request. _Done when:_ concurrent 401s trigger one refresh; unit tested.
 - [ ] **H5** — Add a client helper `checkCompatibility(info, clientVersion)` returning `ok`, `app_outdated`, or `server_outdated`. _Done when:_ unit tested for all three outcomes.
-- [ ] **H6** — Add CI steps that regenerate the client and fail if the result differs from what is committed. _Done when:_ CI is green on a clean tree.
+- [ ] **H6** — Add CI steps that build `packages/api-client` from the committed snapshot, so a snapshot change that breaks the client's types fails CI. _Done when:_ CI is green on a clean tree and fails when the snapshot removes something the client uses.
 
 ## I. Mobile app (Expo)
 
