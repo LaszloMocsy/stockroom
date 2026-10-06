@@ -66,7 +66,7 @@ _Spec: 6, 9.1–9.3, 10, 12.2._
 - [x] **B6** — Add `TimeProvider` and an ID generator abstraction in `Stockroom.Core` producing UUID v7 (internal ids) and UUID v4 (public ids). _Done when:_ all are injectable and unit tested, including v7 time-ordering and version bits for both.
 - [x] **B7** — Generate the OpenAPI document and serve it at `/api/docs` (UI) and `/api/v1/openapi.json`. _Done when:_ the document is reachable and lists `/healthz`.
 - [x] **B8** — Add `GET /api/v1/info` returning `{ server_version, api_version, min_client_version, setup_required }`. _Done when:_ endpoint is public, tested, and `setup_required` is a placeholder constant for now.
-- [ ] **B9** — Add the Testcontainers PostgreSQL fixture shared by integration tests. _Done when:_ a sample test starts a real PostgreSQL container and connects.
+- [x] **B9** — Add the Testcontainers PostgreSQL fixture shared by integration tests. _Done when:_ a sample test starts a real PostgreSQL container and connects.
 
 ## C. Database and schema
 
