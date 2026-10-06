@@ -2,6 +2,7 @@ using System.Text.Json;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Api.Logging;
+using Stockroom.Core;
 
 namespace Stockroom.Api;
 
@@ -15,6 +16,7 @@ internal static class StockroomApiExtensions
     {
         builder.Logging.AddStockroomLogging();
         builder.Services.AddStockroomOptions();
+        builder.Services.AddStockroomCore();
 
         // JSON field names are snake_case throughout the API (spec 10).
         builder.Services.ConfigureHttpJsonOptions(options =>
