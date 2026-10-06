@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Options;
 using Stockroom.Api.Configuration;
+using Stockroom.Api.Logging;
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    builder.Logging.AddStockroomLogging();
     builder.Services.AddStockroomOptions();
 
     var app = builder.Build();
@@ -12,6 +14,8 @@ try
     // Fail fast with a readable message. ValidateOnStart would catch this too, but only after
     // the host has logged the failure with a stack trace.
     _ = app.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
+
+    app.UseStockroomRequestLogging();
 
     // Liveness: the process is up and serving requests. Dependency checks belong in /readyz.
     app.MapGet("/healthz", () => TypedResults.Ok());

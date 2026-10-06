@@ -61,7 +61,7 @@ _Spec: 6, 9.1–9.3, 10, 12.2._
 - [x] **B1** — Create the .NET solution with `Stockroom.Core`, `Stockroom.Data`, `Stockroom.Api`, and `Stockroom.Tests` projects and project references. _Done when:_ `dotnet build` succeeds from `server/`.
 - [x] **B2** — Make `Stockroom.Api` a minimal host that serves `GET /healthz` returning 200. _Done when:_ an integration test calls it with `WebApplicationFactory`.
 - [x] **B3** — Add strongly typed, validated options bound from `STOCKROOM_*` environment variables (database URL, public URL, allowed CORS origins, log level). _Done when:_ startup fails with a clear message when required settings are missing; covered by a test.
-- [ ] **B4** — Add structured JSON console logging with request logging and a correlation ID. _Done when:_ requests log one JSON line each including the correlation ID.
+- [x] **B4** — Add structured JSON console logging with request logging and a correlation ID. _Done when:_ requests log one JSON line each including the correlation ID.
 - [ ] **B5** — Add a global exception handler and the error envelope `{ error: { code, message, details } }`. _Done when:_ unhandled exceptions and validation failures return the envelope; covered by tests.
 - [ ] **B6** — Add `TimeProvider` and an ID generator abstraction in `Stockroom.Core` producing UUID v7 (internal ids) and UUID v4 (public ids). _Done when:_ all are injectable and unit tested, including v7 time-ordering and version bits for both.
 - [ ] **B7** — Generate the OpenAPI document and serve it at `/api/docs` (UI) and `/api/v1/openapi.json`. _Done when:_ the document is reachable and lists `/healthz`.

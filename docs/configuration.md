@@ -23,6 +23,7 @@ Runtime-changeable preferences (such as the negative-stock policy) live in the d
 
 - **CORS origins** are a scheme, host, and optional port, with no path. A trailing `/` is ignored. Leave the list empty when the web app is served behind the same reverse proxy as the API, which avoids CORS entirely.
 - **Log level** sets the default only. Noisy framework categories such as `Microsoft.AspNetCore` stay at `Warning`.
+- **Health probes** (`/healthz`, `/readyz`) that succeed are logged at `Debug`, so they only appear with `STOCKROOM_LOG_LEVEL=Debug` or `Trace`. Failing probes are logged like any other request.
 - Treat the database URL as a secret: it contains the password. Never commit it.
 
 ## Local development
