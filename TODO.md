@@ -57,7 +57,7 @@ _Spec: 9.3, 14._
 
 _Spec: 6, 9.1–9.3, 10, 12.2._
 
-- [ ] **B1** — Create the .NET solution with `Stockroom.Core`, `Stockroom.Data`, `Stockroom.Api`, and `Stockroom.Tests` projects and project references. _Done when:_ `dotnet build` succeeds from `server/`.
+- [x] **B1** — Create the .NET solution with `Stockroom.Core`, `Stockroom.Data`, `Stockroom.Api`, and `Stockroom.Tests` projects and project references. _Done when:_ `dotnet build` succeeds from `server/`.
 - [ ] **B2** — Make `Stockroom.Api` a minimal host that serves `GET /healthz` returning 200. _Done when:_ an integration test calls it with `WebApplicationFactory`.
 - [ ] **B3** — Add strongly typed, validated options bound from `STOCKROOM_*` environment variables (database URL, public URL, allowed CORS origins, log level). _Done when:_ startup fails with a clear message when required settings are missing; covered by a test.
 - [ ] **B4** — Add structured JSON console logging with request logging and a correlation ID. _Done when:_ requests log one JSON line each including the correlation ID.

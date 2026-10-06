@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Stockroom.Core\Stockroom.Core.csproj" />
+    <ProjectReference Include="..\Stockroom.Data\Stockroom.Data.csproj" />
+  </ItemGroup>
+</Project>
