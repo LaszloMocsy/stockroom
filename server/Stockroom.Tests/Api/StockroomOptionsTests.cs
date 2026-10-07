@@ -2,10 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Stockroom.Api.Configuration;
+using Stockroom.Tests.Infrastructure;
 
 namespace Stockroom.Tests.Api;
 
-public sealed class StockroomOptionsTests
+public sealed class StockroomOptionsTests(PostgresFixture postgres)
 {
     [Fact]
     public async Task StartupFailsNamingEveryMissingRequiredSetting()
@@ -41,26 +42,26 @@ public sealed class StockroomOptionsTests
     }
 
     [Fact]
-    public void ValidSettingsAreBound()
+    public async Task ValidSettingsAreBound()
     {
-        using var factory = StockroomApiFactory.WithSettings(new Dictionary<string, string?>(StockroomApiFactory.ValidSettings)
+        await using var factory = await StockroomApiFactory.CreateAsync(postgres, configure: settings =>
         {
-            [StockroomOptions.AllowedCorsOriginsKey] = " https://app.example.test , http://localhost:5173/ ,",
-            [StockroomOptions.LogLevelKey] = "warning",
+            settings[StockroomOptions.AllowedCorsOriginsKey] = " https://app.example.test , http://localhost:5173/ ,";
+            settings[StockroomOptions.LogLevelKey] = "warning";
         });
 
         var options = factory.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
 
-        Assert.Equal(StockroomApiFactory.ValidSettings[StockroomOptions.DatabaseUrlKey], options.DatabaseUrl);
+        Assert.Equal(factory.Settings[StockroomOptions.DatabaseUrlKey], options.DatabaseUrl);
         Assert.Equal(new Uri("https://stock.example.test"), options.PublicUrl);
         Assert.Equal(["https://app.example.test", "http://localhost:5173"], options.AllowedCorsOrigins);
         Assert.Equal(LogLevel.Warning, options.LogLevel);
     }
 
     [Fact]
-    public void OptionalSettingsHaveDefaults()
+    public async Task OptionalSettingsHaveDefaults()
     {
-        using var factory = new StockroomApiFactory();
+        await using var factory = await StockroomApiFactory.CreateAsync(postgres);
 
         var options = factory.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
 
@@ -69,12 +70,10 @@ public sealed class StockroomOptionsTests
     }
 
     [Fact]
-    public void LogLevelSettingOverridesTheDefaultLogLevel()
+    public async Task LogLevelSettingOverridesTheDefaultLogLevel()
     {
-        using var factory = StockroomApiFactory.WithSettings(new Dictionary<string, string?>(StockroomApiFactory.ValidSettings)
-        {
-            [StockroomOptions.LogLevelKey] = "Error",
-        });
+        await using var factory = await StockroomApiFactory.CreateAsync(postgres, configure: settings =>
+            settings[StockroomOptions.LogLevelKey] = "Error");
 
         var logger = factory.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Stockroom.Test");
 

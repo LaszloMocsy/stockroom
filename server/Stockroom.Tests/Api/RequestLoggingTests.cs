@@ -2,10 +2,11 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Stockroom.Api.Configuration;
+using Stockroom.Tests.Infrastructure;
 
 namespace Stockroom.Tests.Api;
 
-public sealed class RequestLoggingFixture : IAsyncLifetime
+public sealed class RequestLoggingFixture(PostgresFixture postgres) : IAsyncLifetime
 {
     public ApiProcess.RunningApi Api { get; private set; } = null!;
 
@@ -13,7 +14,8 @@ public sealed class RequestLoggingFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        Api = await ApiProcess.StartAsync(StockroomApiFactory.ValidSettings, TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+        Api = await ApiProcess.StartAsync(StockroomApiFactory.SettingsFor(await postgres.CreateDatabaseAsync(token)), token);
         Client = new HttpClient { BaseAddress = Api.BaseAddress };
     }
 
@@ -171,16 +173,14 @@ public sealed class RequestLoggingTests(RequestLoggingFixture fixture) : IClassF
     }
 }
 
-public sealed class ProbeLoggingAtDebugTests
+public sealed class ProbeLoggingAtDebugTests(PostgresFixture postgres)
 {
     [Fact]
     public async Task SuccessfulProbesAreLoggedAtDebugWhenEnabled()
     {
         var token = TestContext.Current.CancellationToken;
-        var settings = new Dictionary<string, string?>(StockroomApiFactory.ValidSettings)
-        {
-            [StockroomOptions.LogLevelKey] = "Debug",
-        };
+        var settings = StockroomApiFactory.SettingsFor(await postgres.CreateDatabaseAsync(token));
+        settings[StockroomOptions.LogLevelKey] = "Debug";
         await using var api = await ApiProcess.StartAsync(settings, token);
         using var client = new HttpClient { BaseAddress = api.BaseAddress };
         using var request = new HttpRequestMessage(HttpMethod.Get, "/healthz");

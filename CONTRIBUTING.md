@@ -18,11 +18,12 @@ Thanks for your interest!
 
 The repository uses pinned tool versions:
 
-| Tool     | Version                               | Declared in                                           |
-| -------- | ------------------------------------- | ----------------------------------------------------- |
-| Node     | 24.19.x                               | `.nvmrc`, `engines.node` in `package.json`            |
-| pnpm     | 12.9.1                                | `packageManager` and `engines.pnpm` in `package.json` |
-| .NET SDK | 10.0.401 or a later 10.0 feature band | `global.json`                                         |
+| Tool      | Version                               | Declared in                                           |
+| --------- | ------------------------------------- | ----------------------------------------------------- |
+| Node      | 24.19.x                               | `.nvmrc`, `engines.node` in `package.json`            |
+| pnpm      | 12.9.1                                | `packageManager` and `engines.pnpm` in `package.json` |
+| .NET SDK  | 10.0.401 or a later 10.0 feature band | `global.json`                                         |
+| dotnet-ef | 10.0.12                               | `server/dotnet-tools.json`                            |
 
 To set them up:
 
@@ -31,6 +32,7 @@ nvm use               # or any version manager that reads .nvmrc
 corepack enable       # installs the pnpm version from packageManager
 pnpm install
 dotnet --version      # should print the SDK pinned in global.json
+(cd server && dotnet tool restore)  # installs dotnet-ef for EF Core migrations
 ```
 
 ## Ground rules
