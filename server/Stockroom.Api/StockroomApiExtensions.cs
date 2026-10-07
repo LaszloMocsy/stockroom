@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
@@ -7,9 +9,11 @@ using Stockroom.Api.OpenApi;
 using Stockroom.Core;
 using Stockroom.Core.Products;
 using Stockroom.Core.Settings;
+using Stockroom.Core.Users;
 using Stockroom.Data;
 using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
+using Stockroom.Data.Users;
 
 namespace Stockroom.Api;
 
@@ -28,6 +32,10 @@ internal static class StockroomApiExtensions
             options.UseStockroomDatabase(services.GetRequiredService<IOptions<StockroomOptions>>().Value.DatabaseUrl));
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
+        builder.Services.AddIdentityCore<User>()
+            .AddRoles<IdentityRole<Guid>>()
+            .AddUserStore<StockroomUserStore>()
+            .AddRoleStore<RoleStore<IdentityRole<Guid>, StockroomDbContext, Guid>>();
 
         // JSON field names are snake_case throughout the API (spec 10).
         builder.Services.ConfigureHttpJsonOptions(options =>

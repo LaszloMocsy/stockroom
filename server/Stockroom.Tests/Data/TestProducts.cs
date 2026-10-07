@@ -6,8 +6,8 @@ namespace Stockroom.Tests.Data;
 /// <summary>Builders for the product data-layer tests.</summary>
 internal static class TestProducts
 {
-    /// <summary>A product with only the required fields set.</summary>
-    public static Product New(string sku, Guid? publicId = null)
+    /// <summary>A product with only the required fields set, unless given.</summary>
+    public static Product New(string sku, Guid? publicId = null, Guid? createdBy = null)
     {
         var now = DateTimeOffset.UtcNow;
         return new Product
@@ -18,6 +18,7 @@ internal static class TestProducts
             Name = "Product " + sku,
             CreatedAt = now,
             UpdatedAt = now,
+            CreatedBy = createdBy,
         };
     }
 
