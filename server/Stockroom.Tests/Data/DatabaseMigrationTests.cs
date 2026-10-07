@@ -45,18 +45,20 @@ public sealed class DatabaseMigrationTests(PostgresFixture postgres)
     {
         var databaseUrl = await postgres.CreateDatabaseAsync(Token);
         await MarkAsMigratedByANewerVersionAsync(databaseUrl);
-        await using var db = CreateContext(databaseUrl);
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        var appliedBefore = await db.Database.GetAppliedMigrationsAsync(Token);
 
         var ex = await Assert.ThrowsAsync<DatabaseSchemaTooNewException>(() => DatabaseMigrator.MigrateAsync(db, Token));
 
         Assert.Equal([NewerMigration], ex.UnknownMigrations);
-        Assert.Equal([NewerMigration], await db.Database.GetAppliedMigrationsAsync(Token));
+        Assert.Contains(NewerMigration, appliedBefore);
+        Assert.Equal(appliedBefore, await db.Database.GetAppliedMigrationsAsync(Token));
     }
 
     /// <summary>Migrates the database, then records a migration this build does not have.</summary>
     private static async Task MarkAsMigratedByANewerVersionAsync(string databaseUrl)
     {
-        await using (var db = CreateContext(databaseUrl))
+        await using (var db = TestDatabase.CreateContext(databaseUrl))
         {
             await db.Database.MigrateAsync(Token);
         }
@@ -76,12 +78,5 @@ public sealed class DatabaseMigrationTests(PostgresFixture postgres)
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT to_regclass('\"__EFMigrationsHistory\"') IS NOT NULL";
         return (bool)(await command.ExecuteScalarAsync(Token))!;
-    }
-
-    private static StockroomDbContext CreateContext(string databaseUrl)
-    {
-        var options = new DbContextOptionsBuilder<StockroomDbContext>();
-        options.UseStockroomDatabase(databaseUrl);
-        return new StockroomDbContext(options.Options);
     }
 }
