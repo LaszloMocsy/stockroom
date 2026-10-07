@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Stockroom.Core.Locations;
 using Stockroom.Core.Products;
 using Stockroom.Core.Stock;
+using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
 
 namespace Stockroom.Data;
@@ -25,6 +26,9 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
 
     public DbSet<StoredSetting> Settings => Set<StoredSetting>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasSequence<long>(SkuGenerator.SequenceName);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockroomDbContext).Assembly);
+    }
 }
