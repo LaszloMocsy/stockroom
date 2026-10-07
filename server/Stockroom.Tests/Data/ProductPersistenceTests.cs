@@ -16,8 +16,8 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
         var createdAt = new DateTimeOffset(2026, 10, 7, 9, 30, 0, TimeSpan.Zero);
         var product = new Product
         {
-            Id = TestProducts.Ids.NewInternalId(),
-            PublicId = TestProducts.Ids.NewPublicId(),
+            Id = TestDatabase.Ids.NewInternalId(),
+            PublicId = TestDatabase.Ids.NewPublicId(),
             Sku = "SR-000001",
             Name = "M6 hex bolt",
             Description = "Zinc plated, 30 mm",
@@ -25,7 +25,7 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
             ArchivedAt = createdAt.AddDays(2),
             CreatedAt = createdAt,
             UpdatedAt = createdAt.AddDays(1),
-            CreatedBy = TestProducts.Ids.NewInternalId(),
+            CreatedBy = TestDatabase.Ids.NewInternalId(),
         };
 
         await using (var db = TestDatabase.CreateContext(databaseUrl))
@@ -67,11 +67,11 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
     public async Task SkusAreUnique()
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
-        await TestProducts.AddAsync(databaseUrl, TestProducts.New("SR-000001"));
+        await TestDatabase.AddAsync(databaseUrl, TestProducts.New("SR-000001"));
 
-        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestProducts.AddAsync(databaseUrl, TestProducts.New("SR-000001")));
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestDatabase.AddAsync(databaseUrl, TestProducts.New("SR-000001")));
 
-        TestProducts.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_products_sku");
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_products_sku");
     }
 
     [Fact]
@@ -79,11 +79,11 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
         var first = TestProducts.New("SR-000001");
-        await TestProducts.AddAsync(databaseUrl, first);
+        await TestDatabase.AddAsync(databaseUrl, first);
 
         var duplicate = TestProducts.New("SR-000002", publicId: first.PublicId);
-        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestProducts.AddAsync(databaseUrl, duplicate));
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestDatabase.AddAsync(databaseUrl, duplicate));
 
-        TestProducts.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_products_public_id");
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_products_public_id");
     }
 }

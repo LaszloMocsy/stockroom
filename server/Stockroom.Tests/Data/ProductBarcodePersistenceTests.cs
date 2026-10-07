@@ -15,7 +15,7 @@ public sealed class ProductBarcodePersistenceTests(PostgresFixture postgres)
         var product = TestProducts.New("SR-000001");
         product.Barcodes.Add(TestProducts.Barcode(product.Id, "4006381333931"));
         product.Barcodes.Add(TestProducts.Barcode(product.Id, "https://example.com/p/42"));
-        await TestProducts.AddAsync(databaseUrl, product);
+        await TestDatabase.AddAsync(databaseUrl, product);
 
         await using var db = TestDatabase.CreateContext(databaseUrl);
         var loaded = await db.Products.Include(p => p.Barcodes).SingleAsync(p => p.Id == product.Id, Token);
@@ -29,12 +29,12 @@ public sealed class ProductBarcodePersistenceTests(PostgresFixture postgres)
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
         var first = TestProducts.New("SR-000001");
         var second = TestProducts.New("SR-000002");
-        await TestProducts.AddAsync(databaseUrl, first, second, TestProducts.Barcode(first.Id, "4006381333931"));
+        await TestDatabase.AddAsync(databaseUrl, first, second, TestProducts.Barcode(first.Id, "4006381333931"));
 
         var ex = await Assert.ThrowsAsync<DbUpdateException>(
-            () => TestProducts.AddAsync(databaseUrl, TestProducts.Barcode(second.Id, "4006381333931")));
+            () => TestDatabase.AddAsync(databaseUrl, TestProducts.Barcode(second.Id, "4006381333931")));
 
-        TestProducts.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_product_barcodes_barcode");
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_product_barcodes_barcode");
     }
 
     [Fact]
@@ -42,12 +42,12 @@ public sealed class ProductBarcodePersistenceTests(PostgresFixture postgres)
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
         var product = TestProducts.New("SR-000001");
-        await TestProducts.AddAsync(databaseUrl, product, TestProducts.Barcode(product.Id, "4006381333931"));
+        await TestDatabase.AddAsync(databaseUrl, product, TestProducts.Barcode(product.Id, "4006381333931"));
 
         var ex = await Assert.ThrowsAsync<DbUpdateException>(
-            () => TestProducts.AddAsync(databaseUrl, TestProducts.Barcode(product.Id, "4006381333931")));
+            () => TestDatabase.AddAsync(databaseUrl, TestProducts.Barcode(product.Id, "4006381333931")));
 
-        TestProducts.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_product_barcodes_barcode");
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_product_barcodes_barcode");
     }
 
     [Fact]
@@ -56,8 +56,8 @@ public sealed class ProductBarcodePersistenceTests(PostgresFixture postgres)
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
 
         var ex = await Assert.ThrowsAsync<DbUpdateException>(
-            () => TestProducts.AddAsync(databaseUrl, TestProducts.Barcode(TestProducts.Ids.NewInternalId(), "4006381333931")));
+            () => TestDatabase.AddAsync(databaseUrl, TestProducts.Barcode(TestDatabase.Ids.NewInternalId(), "4006381333931")));
 
-        TestProducts.AssertConstraintViolation(ex, PostgresErrorCodes.ForeignKeyViolation, "fk_product_barcodes_products_product_id");
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.ForeignKeyViolation, "fk_product_barcodes_products_product_id");
     }
 }

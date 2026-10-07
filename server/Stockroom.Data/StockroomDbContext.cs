@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Stockroom.Core.Locations;
 using Stockroom.Core.Products;
 
 namespace Stockroom.Data;
@@ -13,6 +14,8 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
     public DbSet<Product> Products => Set<Product>();
 
     public DbSet<ProductBarcode> ProductBarcodes => Set<ProductBarcode>();
+
+    public DbSet<Location> Locations => Set<Location>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockroomDbContext).Assembly);

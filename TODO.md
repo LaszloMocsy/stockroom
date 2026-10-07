@@ -76,7 +76,7 @@ _Spec: 3.1, 3.2._
 - [x] **C2** — Apply migrations automatically at startup and refuse to start against a newer schema. _Done when:_ both behaviours are covered by tests.
 - [x] **C3** — Add the `Product` entity and migration (id UUID v7, public_id UUID v4 unique, sku unique, name, description, min_stock, archived_at, created/updated timestamps, created_by). _Done when:_ migration applies and a repository test persists a product.
 - [x] **C4** — Add `ProductBarcode` (barcode unique across all products, FK to product). _Done when:_ duplicate barcodes are rejected by a database constraint, tested.
-- [ ] **C5** — Add `Location` (id UUID v7, unique `public_id` UUID v4) and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration with both ids.
+- [x] **C5** — Add `Location` (id UUID v7, unique `public_id` UUID v4) and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration with both ids.
 - [ ] **C6** — Add `StockLevel` (product, location, quantity; unique on the pair). _Done when:_ migration applies; uniqueness tested.
 - [ ] **C7** — Add `StockMovement` with all spec fields (including unique `public_id`), an index on `(product_id, created_at)`, and a unique index on `(actor_id, idempotency_key)`. _Done when:_ migration applies; the idempotency uniqueness is tested.
 - [ ] **C8** — Add a `Settings` table and typed accessor with `allow_negative_stock` (default false). _Done when:_ read/write covered by a test.
