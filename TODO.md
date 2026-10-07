@@ -79,7 +79,7 @@ _Spec: 3.1, 3.2._
 - [x] **C5** — Add `Location` (id UUID v7, unique `public_id` UUID v4) and seed the default `Main storage` location in the migration. _Done when:_ the default location exists after migration with both ids.
 - [x] **C6** — Add `StockLevel` (product, location, quantity; unique on the pair). _Done when:_ migration applies; uniqueness tested.
 - [x] **C7** — Add `StockMovement` with all spec fields (including unique `public_id`), an index on `(product_id, created_at)`, and a unique index on `(actor_id, idempotency_key)`. _Done when:_ migration applies; the idempotency uniqueness is tested.
-- [ ] **C8** — Add a `Settings` table and typed accessor with `allow_negative_stock` (default false). _Done when:_ read/write covered by a test.
+- [x] **C8** — Add a `Settings` table and typed accessor with `allow_negative_stock` (default false). _Done when:_ read/write covered by a test.
 - [ ] **C9** — Add a SKU sequence and generator producing `SR-000123` style values. _Done when:_ concurrent generation yields unique values, tested.
 
 ## D. Authentication and users
