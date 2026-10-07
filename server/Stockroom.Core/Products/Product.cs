@@ -31,4 +31,6 @@ public sealed class Product
 
     /// <summary>Internal ID of the user who created the product, if known.</summary>
     public Guid? CreatedBy { get; init; }
+
+    public List<ProductBarcode> Barcodes { get; init; } = [];
 }

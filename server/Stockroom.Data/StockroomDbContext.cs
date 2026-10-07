@@ -12,6 +12,8 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
 {
     public DbSet<Product> Products => Set<Product>();
 
+    public DbSet<ProductBarcode> ProductBarcodes => Set<ProductBarcode>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockroomDbContext).Assembly);
 }
