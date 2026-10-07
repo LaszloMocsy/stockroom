@@ -20,6 +20,8 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
 
     public DbSet<StockLevel> StockLevels => Set<StockLevel>();
 
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockroomDbContext).Assembly);
 }
