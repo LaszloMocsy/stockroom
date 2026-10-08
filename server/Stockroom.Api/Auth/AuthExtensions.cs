@@ -7,7 +7,10 @@ namespace Stockroom.Api.Auth;
 
 internal static class AuthExtensions
 {
-    /// <summary>Registers bearer authentication with the access tokens from <see cref="AccessTokenIssuer"/>.</summary>
+    /// <summary>
+    /// Registers bearer authentication with the access tokens from <see cref="AccessTokenIssuer"/>, and the
+    /// authorisation <see cref="Policies"/>.
+    /// </summary>
     public static IServiceCollection AddStockroomAuth(this IServiceCollection services)
     {
         services.AddSingleton<AccessTokenKey>();
@@ -34,7 +37,10 @@ internal static class AuthExtensions
                     ClockSkew = TimeSpan.Zero,
                 };
             });
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+            .AddPolicy(Policies.RequireStaff, Policies.Staff)
+            .AddPolicy(Policies.RequireAdmin, Policies.Admin)
+            .SetDefaultPolicy(Policies.Staff);
         return services;
     }
 

@@ -29,6 +29,8 @@ public sealed class TestApi : IAsyncDisposable
 
     public CapturingLoggerProvider Logs { get; }
 
+    public IServiceProvider Services => _app.Services;
+
     public static async Task<TestApi> StartAsync(Action<IEndpointRouteBuilder> mapEndpoints)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });

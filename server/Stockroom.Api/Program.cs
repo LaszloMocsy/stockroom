@@ -22,16 +22,21 @@ try
 
     app.UseStockroomApi();
 
-    app.MapStockroomOpenApi();
+    // Every endpoint needs a logged-in user unless it is marked AllowAnonymous (see Policies).
+    // AuthorizationConventionTests fails for any endpoint mapped outside this group.
+    var endpoints = app.MapGroup("").RequireAuthorization();
+
+    endpoints.MapStockroomOpenApi(app.Environment);
 
     // Liveness: the process is up and serving requests. Dependency checks belong in /readyz.
-    app.MapGet("/healthz", () => TypedResults.Ok())
+    endpoints.MapGet("/healthz", () => TypedResults.Ok())
+        .AllowAnonymous()
         .WithName("GetHealthz")
         .WithTags("Health")
         .WithSummary("Liveness probe")
         .WithDescription("Returns 200 while the process is up and serving requests. Does not check dependencies.");
 
-    var v1 = app.MapGroup("/api/v1");
+    var v1 = endpoints.MapGroup("/api/v1");
     v1.MapInfoEndpoints();
     v1.MapSetupEndpoints();
     v1.MapAuthEndpoints();

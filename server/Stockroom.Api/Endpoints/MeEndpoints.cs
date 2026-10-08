@@ -14,7 +14,6 @@ internal static class MeEndpoints
     public static IEndpointRouteBuilder MapMeEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/me", GetMeAsync)
-            .RequireAuthorization()
             .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
             .WithName("GetMe")
             .WithTags("Users")

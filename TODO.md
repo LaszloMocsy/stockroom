@@ -93,7 +93,7 @@ _Spec: 2, 4.7, 10.2, 11._
 - [x] **D5** — Store refresh tokens hashed, per device, and add `POST /api/v1/auth/refresh` with rotation and reuse detection. _Done when:_ reusing a rotated token revokes the chain; tested.
 - [x] **D6** — Add `POST /api/v1/auth/logout` revoking the device's refresh token. _Done when:_ the revoked token can no longer refresh; tested.
 - [x] **D7** — Add `GET /api/v1/me`. _Done when:_ returns `public_id` (as `id`), username, display name, and role for the authenticated user.
-- [ ] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
+- [x] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
 - [ ] **D9** — Add rate limiting and lockout backoff on auth endpoints. _Done when:_ repeated bad logins get 429 or lockout; tested.
 - [ ] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
 - [ ] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (`:id` is the public id; display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
