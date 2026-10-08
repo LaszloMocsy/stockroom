@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Tests.Infrastructure;
 
@@ -64,5 +66,9 @@ public sealed class StockroomApiFactory(PostgresFixture postgres) : WebApplicati
         {
             builder.UseSetting(key, value);
         }
+
+        // In-process requests all come from one client address, so the per-address auth rate limit would
+        // trip across unrelated tests. Tests of the limit lower it again with ConfigureTestServices.
+        builder.ConfigureServices(services => services.Configure<AuthRateLimitOptions>(o => o.PermitLimit = int.MaxValue));
     }
 }

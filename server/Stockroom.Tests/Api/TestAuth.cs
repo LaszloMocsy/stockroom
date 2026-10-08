@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -29,7 +30,7 @@ public static class TestAuth
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     /// <summary>Creates a user with a unique username, <see cref="Password"/>, and <paramref name="role"/>.</summary>
-    public static async Task<User> CreateUserAsync(StockroomApiFactory app, string role)
+    public static async Task<User> CreateUserAsync(WebApplicationFactory<Program> app, string role)
     {
         await using var scope = app.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
@@ -39,7 +40,7 @@ public static class TestAuth
         return user;
     }
 
-    public static async Task<Tokens> LoginAsync(StockroomApiFactory app, string username, string? deviceName = null)
+    public static async Task<Tokens> LoginAsync(WebApplicationFactory<Program> app, string username, string? deviceName = null)
     {
         using var client = app.CreateClient();
         using var response = await client.PostAsJsonAsync(LoginUri, new { username, password = Password, device_name = deviceName }, Token);
@@ -47,7 +48,7 @@ public static class TestAuth
         return await ReadTokensAsync(response);
     }
 
-    public static async Task<Tokens> RefreshAsync(StockroomApiFactory app, string refreshToken)
+    public static async Task<Tokens> RefreshAsync(WebApplicationFactory<Program> app, string refreshToken)
     {
         using var client = app.CreateClient();
         using var response = await client.PostAsJsonAsync(RefreshUri, new { refresh_token = refreshToken }, Token);
@@ -69,7 +70,7 @@ public static class TestAuth
     }
 
     /// <summary>Validates an access token exactly as the API does for an incoming Authorization header.</summary>
-    public static async Task<TokenValidationResult> ValidateAsync(StockroomApiFactory app, string accessToken)
+    public static async Task<TokenValidationResult> ValidateAsync(WebApplicationFactory<Program> app, string accessToken)
     {
         var options = app.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
         return await options.TokenHandlers.Single().ValidateTokenAsync(accessToken, options.TokenValidationParameters);

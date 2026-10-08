@@ -62,6 +62,7 @@ internal static class StockroomApiExtensions
     {
         app.UseStockroomRequestLogging();
         app.UseStockroomErrorHandling();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         return app;

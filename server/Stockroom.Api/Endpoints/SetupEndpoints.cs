@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Stockroom.Api.Auth;
 using Stockroom.Api.Errors;
 using Stockroom.Core.Users;
 using Stockroom.Data;
@@ -24,6 +25,8 @@ internal static class SetupEndpoints
     {
         endpoints.MapPost("/setup", SetupAsync)
             .AllowAnonymous()
+            .RequireRateLimiting(AuthRateLimiting.PolicyName)
+            .Produces<ErrorResponse>(StatusCodes.Status429TooManyRequests)
             .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
             .Produces<ErrorResponse>(StatusCodes.Status409Conflict)
             .WithName("Setup")

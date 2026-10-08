@@ -17,6 +17,8 @@ internal static class AuthExtensions
         services.AddSingleton<AccessTokenIssuer>();
         services.AddScoped<RefreshTokenService>();
         services.AddScoped<SigningKeyStore>();
+        services.AddScoped<LoginLockout>();
+        services.AddStockroomAuthRateLimiting();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

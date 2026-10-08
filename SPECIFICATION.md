@@ -442,7 +442,7 @@ Every self-hosted server runs its own version, while the mobile app is a single 
 
 ## 11. Security
 
-- Passwords hashed via the ASP.NET Core Identity hasher (PBKDF2); login rate limiting and lockout backoff.
+- Passwords hashed via the ASP.NET Core Identity hasher (PBKDF2); login rate limiting and lockout backoff. The auth endpoints accept 30 requests per minute per client address. After 5 wrong passwords in a row an account is locked for 1 minute, doubling with each further failure up to 15 minutes; a successful login resets the count. Both answer 429 with `Retry-After`.
 - All inputs validated server-side; parameterised queries only (EF Core).
 - Strict CORS: an explicit allowed-origins list, empty by default. Serving the web app behind the same reverse proxy as the API avoids CORS entirely and is the documented default.
 - Secure headers (CSP for the web app, HSTS behind TLS, X-Content-Type-Options, frame-ancestors none).
@@ -609,7 +609,7 @@ Versions of this document. Newest first.
 
 ### v0.6 — 2026-10-08
 
-- **Auth:** access tokens are JWTs signed with a key the server generates and stores in the database; refresh tokens are stored hashed and rotate on every refresh, reusing a used one revokes its device session, logout revokes the session by refresh token, and login takes an optional `device_name` (section 10.2).
+- **Auth:** access tokens are JWTs signed with a key the server generates and stores in the database; refresh tokens are stored hashed and rotate on every refresh, reusing a used one revokes its device session, logout revokes the session by refresh token, and login takes an optional `device_name` (section 10.2). Concrete rate limit and lockout backoff for the auth endpoints (section 11).
 
 ### v0.5 — 2026-10-06
 

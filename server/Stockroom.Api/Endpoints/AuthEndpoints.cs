@@ -12,25 +12,30 @@ internal static class AuthEndpoints
 {
     public const string InvalidCredentials = "invalid_credentials";
     public const string InvalidRefreshToken = "invalid_refresh_token";
+    public const string AccountLockedOut = "account_locked_out";
 
     // Hash of a random password, created on the first login attempt for an unknown username.
     private static string? UnknownUserHash;
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var auth = endpoints.MapGroup("/auth").WithTags("Auth");
+        var auth = endpoints.MapGroup("/auth")
+            .WithTags("Auth")
+            .RequireRateLimiting(AuthRateLimiting.PolicyName);
 
         auth.MapPost("/login", LoginAsync)
             .AllowAnonymous()
             .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status429TooManyRequests)
             .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
             .WithName("Login")
             .WithSummary("Log in with username and password")
-            .WithDescription($"Returns a short-lived access token for the `Authorization: Bearer` header and a refresh token for this device. Wrong credentials return 401 with `{InvalidCredentials}`, whether or not the username exists.");
+            .WithDescription($"Returns a short-lived access token for the `Authorization: Bearer` header and a refresh token for this device. Wrong credentials return 401 with `{InvalidCredentials}`, whether or not the username exists. After {LoginLockout.FreeAttempts} wrong passwords in a row the account is locked, for longer after each further failure, and login returns 429 with `{AccountLockedOut}` and `Retry-After` until the lockout ends.");
 
         auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()
             .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status429TooManyRequests)
             .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
             .WithName("RefreshTokens")
             .WithSummary("Exchange a refresh token for new tokens")
@@ -39,6 +44,7 @@ internal static class AuthEndpoints
         auth.MapPost("/logout", LogoutAsync)
             .AllowAnonymous()
             .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status429TooManyRequests)
             .WithName("Logout")
             .WithSummary("Log this device out")
             .WithDescription("Revokes the device's session, so its refresh token can no longer be used. Takes the refresh token rather than the access token, so it works after the access token has expired. Always returns 204, also for an unknown or already revoked token. The access token stays valid until it expires (at most 15 minutes); clients discard it.");
@@ -48,8 +54,10 @@ internal static class AuthEndpoints
     private static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> LoginAsync(
         LoginRequest request,
         UserManager<User> users,
+        LoginLockout lockout,
         AccessTokenIssuer accessTokens,
         RefreshTokenService refreshTokens,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var user = await users.FindByNameAsync(request.Username);
@@ -60,11 +68,28 @@ internal static class AuthEndpoints
             UnknownUserHash ??= users.PasswordHasher.HashPassword(new User { DisplayName = "" }, Guid.NewGuid().ToString());
             users.PasswordHasher.VerifyHashedPassword(new User { DisplayName = "" }, UnknownUserHash, request.Password);
         }
+        else if (lockout.RemainingLockout(user) is { } remaining)
+        {
+            // The password is not checked, so guessing it gets nowhere while the account is locked.
+            httpContext.Response.Headers.RetryAfter = AuthRateLimiting.RetryAfterSeconds(remaining);
+            return ApiResults.Error(
+                StatusCodes.Status429TooManyRequests,
+                AccountLockedOut,
+                "Too many failed logins for this account. Try again later.",
+                new { RetryAfterSeconds = (int)Math.Ceiling(remaining.TotalSeconds) });
+        }
 
         if (user is null || !await users.CheckPasswordAsync(user, request.Password))
         {
+            if (user is not null)
+            {
+                await lockout.RecordFailureAsync(user, cancellationToken);
+            }
+
             return ApiResults.Error(StatusCodes.Status401Unauthorized, InvalidCredentials, "The username or password is incorrect.");
         }
+
+        await lockout.RecordSuccessAsync(user, cancellationToken);
 
         var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? null : request.DeviceName.Trim();
         var refreshToken = await refreshTokens.IssueAsync(user, deviceName, cancellationToken);
