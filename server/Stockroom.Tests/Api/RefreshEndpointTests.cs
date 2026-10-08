@@ -47,7 +47,7 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
         var user = await CreateUserAsync(factory, Roles.Staff);
         var login = await LoginAsync(factory, user.UserName!, deviceName: "Phone");
 
-        var refreshed = await RefreshAsync(login.RefreshToken);
+        var refreshed = await RefreshAsync(factory, login.RefreshToken);
         var stored = await RefreshTokensOfAsync(factory, user);
 
         Assert.Equal(2, stored.Count);
@@ -69,7 +69,7 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
 
         for (var i = 0; i < 3; i++)
         {
-            tokens = await RefreshAsync(tokens.RefreshToken);
+            tokens = await RefreshAsync(factory, tokens.RefreshToken);
         }
 
         Assert.Equal(4, (await RefreshTokensOfAsync(factory, user)).Count);
@@ -80,7 +80,7 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
     {
         var user = await CreateUserAsync(factory, Roles.Staff);
         var login = await LoginAsync(factory, user.UserName!);
-        var refreshed = await RefreshAsync(login.RefreshToken);
+        var refreshed = await RefreshAsync(factory, login.RefreshToken);
         using var client = factory.CreateClient();
 
         // The old token comes back: a stolen copy, say. Neither it nor the token that replaced it works any more.
@@ -100,7 +100,7 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
         var user = await CreateUserAsync(factory, Roles.Staff);
         var phone = await LoginAsync(factory, user.UserName!, deviceName: "Phone");
         var laptop = await LoginAsync(factory, user.UserName!, deviceName: "Laptop");
-        await RefreshAsync(phone.RefreshToken);
+        await RefreshAsync(factory, phone.RefreshToken);
         using var client = factory.CreateClient();
 
         (await client.PostAsJsonAsync(RefreshUri, new { refresh_token = phone.RefreshToken }, Token)).Dispose();
@@ -176,7 +176,7 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
             Assert.True((await users.AddToRoleAsync(loaded!, Roles.Admin)).Succeeded);
         }
 
-        var refreshed = await RefreshAsync(login.RefreshToken);
+        var refreshed = await RefreshAsync(factory, login.RefreshToken);
 
         Assert.Equal(Roles.Admin, (await ValidateAsync(factory, refreshed.AccessToken)).Claims[AccessTokenIssuer.RoleClaim]);
     }
@@ -201,19 +201,5 @@ public sealed class RefreshEndpointTests(StockroomApiFactory factory) : IClassFi
             .Single(e => e.RoutePattern.RawText == "/api/v1/auth/refresh");
 
         Assert.NotNull(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
-    }
-
-    private async Task<Tokens> RefreshAsync(string refreshToken)
-    {
-        using var client = factory.CreateClient();
-        using var response = await client.PostAsJsonAsync(RefreshUri, new { refresh_token = refreshToken }, Token);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return await ReadTokensAsync(response);
-    }
-
-    private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
-    {
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
-        return document.RootElement.GetProperty("error").GetProperty("code").GetString();
     }
 }

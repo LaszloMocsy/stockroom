@@ -7,7 +7,7 @@ using Stockroom.Core.Users;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary><c>/api/v1/auth</c>: login, token refresh, and, later, logout (spec 10.2).</summary>
+/// <summary><c>/api/v1/auth</c>: login, token refresh, and logout (spec 10.2).</summary>
 internal static class AuthEndpoints
 {
     public const string InvalidCredentials = "invalid_credentials";
@@ -35,6 +35,13 @@ internal static class AuthEndpoints
             .WithName("RefreshTokens")
             .WithSummary("Exchange a refresh token for new tokens")
             .WithDescription($"Returns a new access token and a new refresh token; the refresh token sent is used up. Sending a used refresh token again ends the device's session, so every token from that login stops working. An unknown, expired, used, or revoked token returns 401 with `{InvalidRefreshToken}`, and the client has to log in again.");
+
+        auth.MapPost("/logout", LogoutAsync)
+            .AllowAnonymous()
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .WithName("Logout")
+            .WithSummary("Log this device out")
+            .WithDescription("Revokes the device's session, so its refresh token can no longer be used. Takes the refresh token rather than the access token, so it works after the access token has expired. Always returns 204, also for an unknown or already revoked token. The access token stays valid until it expires (at most 15 minutes); clients discard it.");
         return endpoints;
     }
 
@@ -82,6 +89,15 @@ internal static class AuthEndpoints
         return TypedResults.Ok(await TokensAsync(user, rotation.RefreshToken, users, accessTokens));
     }
 
+    private static async Task<NoContent> LogoutAsync(
+        LogoutRequest request,
+        RefreshTokenService refreshTokens,
+        CancellationToken cancellationToken)
+    {
+        await refreshTokens.RevokeSessionAsync(request.RefreshToken, cancellationToken);
+        return TypedResults.NoContent();
+    }
+
     private static async Task<TokenResponse> TokensAsync(User user, string refreshToken, UserManager<User> users, AccessTokenIssuer accessTokens)
     {
         var accessToken = accessTokens.Issue(user, await users.GetRolesAsync(user));
@@ -101,6 +117,10 @@ public sealed record LoginRequest(
 /// <summary>Request body for <c>POST /api/v1/auth/refresh</c>.</summary>
 /// <param name="RefreshToken">The refresh token from the last login or refresh.</param>
 public sealed record RefreshRequest([property: Required, StringLength(256)] string RefreshToken);
+
+/// <summary>Request body for <c>POST /api/v1/auth/logout</c>.</summary>
+/// <param name="RefreshToken">The device's current refresh token.</param>
+public sealed record LogoutRequest([property: Required, StringLength(256)] string RefreshToken);
 
 /// <summary>Tokens for an authenticated device.</summary>
 /// <param name="TokenType">Always <c>Bearer</c>.</param>

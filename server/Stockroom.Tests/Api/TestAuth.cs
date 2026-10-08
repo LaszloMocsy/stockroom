@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,6 +24,8 @@ public static class TestAuth
 
     public static readonly Uri RefreshUri = new("/api/v1/auth/refresh", UriKind.Relative);
 
+    public static readonly Uri LogoutUri = new("/api/v1/auth/logout", UriKind.Relative);
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     /// <summary>Creates a user with a unique username, <see cref="Password"/>, and <paramref name="role"/>.</summary>
@@ -42,6 +45,21 @@ public static class TestAuth
         using var response = await client.PostAsJsonAsync(LoginUri, new { username, password = Password, device_name = deviceName }, Token);
         response.EnsureSuccessStatusCode();
         return await ReadTokensAsync(response);
+    }
+
+    public static async Task<Tokens> RefreshAsync(StockroomApiFactory app, string refreshToken)
+    {
+        using var client = app.CreateClient();
+        using var response = await client.PostAsJsonAsync(RefreshUri, new { refresh_token = refreshToken }, Token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await ReadTokensAsync(response);
+    }
+
+    /// <summary>The <c>error.code</c> of an error response.</summary>
+    public static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
+        return document.RootElement.GetProperty("error").GetProperty("code").GetString();
     }
 
     public static async Task<Tokens> ReadTokensAsync(HttpResponseMessage response)

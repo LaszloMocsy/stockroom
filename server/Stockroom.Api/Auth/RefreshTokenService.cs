@@ -37,44 +37,61 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
     /// </summary>
     public async Task<RefreshTokenRotation?> RotateAsync(string token, CancellationToken cancellationToken)
     {
-        var hash = Hash(token);
-        var now = time.GetUtcNow();
-        var current = await db.RefreshTokens.AsNoTracking().SingleOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
-
-        if (current is null || current.RevokedAt is not null)
-        {
-            return null;
-        }
-
-        if (current.UsedAt is not null)
-        {
-            await RevokeReusedSessionAsync(current, now, cancellationToken);
-            return null;
-        }
-
-        if (current.ExpiresAt <= now)
+        var current = await FindAsync(token, cancellationToken);
+        if (current is null)
         {
             return null;
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await LockSessionAsync(current.SessionId, cancellationToken);
 
-        // Claim the token atomically, so of two concurrent refreshes with the same token only one succeeds.
-        var claimed = await db.RefreshTokens
-            .Where(t => t.Id == current.Id && t.UsedAt == null && t.RevokedAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), cancellationToken);
-        if (claimed == 0)
+        // Read the state again under the lock: a concurrent refresh or logout may have changed it.
+        var state = await db.RefreshTokens
+            .Where(t => t.Id == current.Id)
+            .Select(t => new { t.UsedAt, t.RevokedAt })
+            .SingleAsync(cancellationToken);
+        var now = time.GetUtcNow();
+
+        if (state.RevokedAt is not null || (state.UsedAt is null && current.ExpiresAt <= now))
         {
-            await transaction.RollbackAsync(cancellationToken);
-            await RevokeReusedSessionAsync(current, now, cancellationToken);
             return null;
         }
 
+        if (state.UsedAt is not null)
+        {
+            await RevokeLockedSessionAsync(current.SessionId, now, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            RefreshTokenReused(logger, current.PublicId);
+            return null;
+        }
+
+        await db.RefreshTokens
+            .Where(t => t.Id == current.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), cancellationToken);
         var successor = Add(current.UserId, current.SessionId, current.DeviceName, now);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return new RefreshTokenRotation(current.UserId, successor);
+    }
+
+    /// <summary>
+    /// Ends the session <paramref name="token"/> belongs to, so none of its tokens can refresh again.
+    /// Does nothing for an unknown token.
+    /// </summary>
+    public async Task RevokeSessionAsync(string token, CancellationToken cancellationToken)
+    {
+        var current = await FindAsync(token, cancellationToken);
+        if (current is null)
+        {
+            return;
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await LockSessionAsync(current.SessionId, cancellationToken);
+        await RevokeLockedSessionAsync(current.SessionId, time.GetUtcNow(), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public static byte[] Hash(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
@@ -96,13 +113,25 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
         return token;
     }
 
-    private async Task RevokeReusedSessionAsync(RefreshToken reused, DateTimeOffset now, CancellationToken cancellationToken)
+    private Task<RefreshToken?> FindAsync(string token, CancellationToken cancellationToken)
     {
-        await db.RefreshTokens
-            .Where(t => t.SessionId == reused.SessionId && t.RevokedAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), cancellationToken);
-        RefreshTokenReused(logger, reused.PublicId);
+        var hash = Hash(token);
+        return db.RefreshTokens.AsNoTracking().SingleOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
     }
+
+    /// <summary>
+    /// Serialises every change to one session until the transaction ends. Row locks are not enough: an
+    /// UPDATE only sees rows that existed when it started, so revoking a session while a refresh was
+    /// inserting its next token would miss that token.
+    /// </summary>
+    private Task LockSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+        db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({sessionId}::text, 0))", cancellationToken);
+
+    // Call only inside a transaction that holds the session's lock (see LockSessionAsync).
+    private Task RevokeLockedSessionAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        db.RefreshTokens
+            .Where(t => t.SessionId == sessionId && t.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), cancellationToken);
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Refresh token {TokenId} was presented again after it had been used; its session has been revoked")]
     private static partial void RefreshTokenReused(ILogger logger, Guid tokenId);
