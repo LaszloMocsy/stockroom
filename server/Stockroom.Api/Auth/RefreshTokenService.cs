@@ -21,11 +21,29 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
     // 256 random bits: far too many to guess, which is also why a fast hash is enough to store them.
     private const int TokenSizeInBytes = 32;
 
-    /// <summary>Starts a session for one device and returns its first token.</summary>
-    public async Task<string> IssueAsync(User user, string? deviceName, CancellationToken cancellationToken)
+    /// <summary>
+    /// Starts a session for one device and returns its first token, or <c>null</c> if the user's password
+    /// changed after <paramref name="user"/> was read: the password the caller checked is no longer valid.
+    /// </summary>
+    public async Task<string?> IssueAsync(User user, string? deviceName, CancellationToken cancellationToken)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        // Identity changes the security stamp with the password. FOR SHARE waits for a password reset in
+        // progress, which locks the row, and holds that reset off until this session exists, so the reset
+        // either sees and revokes the session or makes this check fail.
+        var stamp = (await db.Database
+            .SqlQuery<string?>($"SELECT security_stamp AS \"Value\" FROM users WHERE id = {user.Id} FOR SHARE")
+            .ToListAsync(cancellationToken))
+            .SingleOrDefault();
+        if (stamp is null || stamp != user.SecurityStamp)
+        {
+            return null;
+        }
+
         var token = Add(user.Id, ids.NewInternalId(), deviceName, time.GetUtcNow());
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return token;
     }
 
@@ -94,6 +112,33 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
         await transaction.CommitAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Ends every session of the user, e.g. after a password reset (spec 10.2), so each device has to log
+    /// in again. Call it inside the transaction that makes the change, so it takes effect only if that commits.
+    /// </summary>
+    public async Task RevokeAllSessionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException($"{nameof(RevokeAllSessionsAsync)} must run inside a transaction.");
+        }
+
+        var sessionIds = await db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .Select(t => t.SessionId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToListAsync(cancellationToken);
+        var now = time.GetUtcNow();
+
+        // Locked in a fixed order, so two calls for the same user cannot deadlock.
+        foreach (var sessionId in sessionIds)
+        {
+            await LockSessionAsync(sessionId, cancellationToken);
+            await RevokeLockedSessionAsync(sessionId, now, cancellationToken);
+        }
+    }
+
     public static byte[] Hash(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
 
     private string Add(Guid userId, Guid sessionId, string? deviceName, DateTimeOffset now)
@@ -124,7 +169,7 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
     /// UPDATE only sees rows that existed when it started, so revoking a session while a refresh was
     /// inserting its next token would miss that token.
     /// </summary>
-    private Task LockSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+    internal Task LockSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({sessionId}::text, 0))", cancellationToken);
 
     // Call only inside a transaction that holds the session's lock (see LockSessionAsync).

@@ -93,6 +93,12 @@ internal static class AuthEndpoints
 
         var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? null : request.DeviceName.Trim();
         var refreshToken = await refreshTokens.IssueAsync(user, deviceName, cancellationToken);
+        if (refreshToken is null)
+        {
+            // An ADMIN reset the password (or deleted the user) since it was checked.
+            return ApiResults.Error(StatusCodes.Status401Unauthorized, InvalidCredentials, "The username or password is incorrect.");
+        }
+
         return TypedResults.Ok(await TokensAsync(user, refreshToken, users, accessTokens));
     }
 

@@ -205,7 +205,7 @@ See [Section 8](#8-audit-log). The stock ledger gives a full audit trail for qua
 
 - **MVP** First-run setup creates the initial ADMIN account.
 - **MVP** Username/password login with short-lived access tokens and refresh tokens.
-- **MVP** ADMIN creates STAFF users and resets their passwords (minimal user admin).
+- **MVP** ADMIN creates STAFF users and resets their passwords (minimal user admin). ADMIN can also change a user's display name and role, but there is always at least one ADMIN: the last one cannot be made STAFF.
 - **P1** Disable users, personal API tokens, settings UI (instance name, SKU pattern, negative-stock policy, timezone, locale, reason list).
 - **P2** OIDC / OAuth2 SSO, TOTP 2FA.
 
@@ -388,7 +388,7 @@ Later: locations, categories, transfers, batches, audit, import, reports, API to
 
 Conventions:
 
-- Cursor-based pagination; consistent error envelope `{ error: { code, message, details } }` with stable machine-readable `code` values.
+- Cursor-based pagination: a list responds with `{ items, next_cursor }`, where `next_cursor` is `null` on the last page. Lists that are not paged yet return everything in one page. Consistent error envelope `{ error: { code, message, details } }` with stable machine-readable `code` values.
 - `Idempotency-Key` header supported on all stock-mutating endpoints.
 - Rate limiting on auth endpoints.
 - Quantities are JSON integers.
@@ -436,6 +436,7 @@ Every self-hosted server runs its own version, while the mobile app is a single 
 - Access tokens are JWTs signed with HMAC-SHA256. They identify the user by public ID and carry the role. The server generates the signing key on first start and stores it in the database, so no secret has to be configured.
 - Refresh tokens are random, opaque strings; the server stores only their SHA-256 hash. Each login starts a new device session, optionally labelled with a client-supplied `device_name` (e.g. "Anna's iPhone").
 - `POST /api/v1/auth/refresh` uses up the presented refresh token and returns a new access and refresh token in the same session. Presenting a used refresh token again (a stolen copy or a replay) revokes the whole session, and its device has to log in again.
+- A password reset by an ADMIN revokes all of the user's sessions and clears any login lockout.
 - `POST /api/v1/auth/logout` takes the device's refresh token and revokes its session. Access tokens are not tracked, so one stays valid until it expires; clients discard it.
 - Mobile stores tokens in `expo-secure-store`. Web keeps the access token in memory and the refresh token in an `httpOnly` cookie scoped to the auth endpoints, or in secure storage, to be decided at implementation time.
 - Authorisation is enforced on the server for every request using the `ADMIN`/`STAFF` role claim. Clients hide controls for UX only.
@@ -609,6 +610,7 @@ Versions of this document. Newest first.
 
 ### v0.6 — 2026-10-08
 
+- **Users:** lists respond with `{ items, next_cursor }` (section 10); the last ADMIN cannot be made STAFF (section 4.7); a password reset revokes all of the user's sessions and clears any login lockout (section 10.2).
 - **Auth:** access tokens are JWTs signed with a key the server generates and stores in the database; refresh tokens are stored hashed and rotate on every refresh, reusing a used one revokes its device session, logout revokes the session by refresh token, and login takes an optional `device_name` (section 10.2). Concrete rate limit and lockout backoff for the auth endpoints (section 11).
 
 ### v0.5 — 2026-10-06

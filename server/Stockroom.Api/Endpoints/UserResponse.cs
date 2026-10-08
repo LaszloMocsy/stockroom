@@ -13,12 +13,6 @@ public sealed record UserResponse(Guid Id, string Username, string DisplayName, 
         new(user.PublicId, user.UserName!, user.DisplayName, role);
 
     /// <summary>The response for <paramref name="user"/>, with the role read from the database.</summary>
-    internal static async Task<UserResponse> FromAsync(User user, UserManager<User> users)
-    {
-        // Every user has exactly one role (spec 2); anything else is a bug where the role was set.
-        var roles = await users.GetRolesAsync(user);
-        return roles.Count == 1
-            ? From(user, roles[0])
-            : throw new InvalidOperationException($"User {user.PublicId} has {roles.Count} roles instead of exactly one.");
-    }
+    internal static async Task<UserResponse> FromAsync(User user, UserManager<User> users) =>
+        From(user, await UserAccounts.RoleOfAsync(users, user));
 }
