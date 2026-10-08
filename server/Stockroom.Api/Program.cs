@@ -35,6 +35,7 @@ try
     v1.MapInfoEndpoints();
     v1.MapSetupEndpoints();
     v1.MapAuthEndpoints();
+    v1.MapMeEndpoints();
 
     await app.RunAsync();
     return 0;
