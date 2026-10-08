@@ -1,4 +1,7 @@
 using System.Reflection;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using Stockroom.Data;
 
 namespace Stockroom.Api.Endpoints;
 
@@ -17,21 +20,25 @@ internal static class InfoEndpoints
     /// <summary>Oldest client app version this server supports. <c>0.0.0</c> means any version.</summary>
     public const string MinClientVersion = "0.0.0";
 
-    // Placeholder until users exist; task D2 makes it true only while there are no users.
-    private const bool SetupRequired = true;
-
     /// <summary>The server's semantic version, without build metadata such as a commit hash.</summary>
     public static string ServerVersion { get; } = ReadServerVersion();
 
     public static IEndpointRouteBuilder MapInfoEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/info", () => TypedResults.Ok(new InfoResponse(ServerVersion, ApiVersion, MinClientVersion, SetupRequired)))
+        endpoints.MapGet("/info", GetInfoAsync)
             .AllowAnonymous()
             .WithName("GetInfo")
             .WithTags("Server")
             .WithSummary("Server and API version")
             .WithDescription("Versions for the client compatibility check, and whether first-run setup is still required. Does not require authentication.");
         return endpoints;
+    }
+
+    private static async Task<Ok<InfoResponse>> GetInfoAsync(StockroomDbContext db, CancellationToken cancellationToken)
+    {
+        // Setup stays required until the first account exists; POST /api/v1/setup creates it.
+        var setupRequired = !await db.Users.AnyAsync(cancellationToken);
+        return TypedResults.Ok(new InfoResponse(ServerVersion, ApiVersion, MinClientVersion, setupRequired));
     }
 
     private static string ReadServerVersion()

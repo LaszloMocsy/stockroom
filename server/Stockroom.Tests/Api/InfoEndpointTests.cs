@@ -2,10 +2,13 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
+using Stockroom.Api.Configuration;
+using Stockroom.Tests.Data;
+using Stockroom.Tests.Infrastructure;
 
 namespace Stockroom.Tests.Api;
 
-public sealed partial class InfoEndpointTests(StockroomApiFactory factory) : IClassFixture<StockroomApiFactory>
+public sealed partial class InfoEndpointTests(StockroomApiFactory factory, PostgresFixture postgres) : IClassFixture<StockroomApiFactory>
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -24,6 +27,20 @@ public sealed partial class InfoEndpointTests(StockroomApiFactory factory) : ICl
         Assert.Equal("1.0", info.GetProperty("api_version").GetString());
         Assert.Equal("0.0.0", info.GetProperty("min_client_version").GetString());
         Assert.True(info.GetProperty("setup_required").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SetupIsRequiredOnlyWhileThereAreNoUsers()
+    {
+        await using var ownFactory = await StockroomApiFactory.CreateAsync(postgres);
+        using var client = ownFactory.CreateClient();
+
+        var before = await GetSetupRequiredAsync(client);
+        await TestDatabase.AddAsync(ownFactory.Settings[StockroomOptions.DatabaseUrlKey]!, TestUsers.New("anna"));
+        var after = await GetSetupRequiredAsync(client);
+
+        Assert.True(before);
+        Assert.False(after);
     }
 
     [Fact]
@@ -68,6 +85,12 @@ public sealed partial class InfoEndpointTests(StockroomApiFactory factory) : ICl
             ["server_version", "api_version", "min_client_version", "setup_required"],
             schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
         Assert.Equal(4, schema.GetProperty("required").GetArrayLength());
+    }
+
+    private static async Task<bool> GetSetupRequiredAsync(HttpClient client)
+    {
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/api/v1/info", UriKind.Relative), Token));
+        return document.RootElement.GetProperty("setup_required").GetBoolean();
     }
 
     [GeneratedRegex(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$")]
