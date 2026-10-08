@@ -95,7 +95,7 @@ _Spec: 2, 4.7, 10.2, 11._
 - [x] **D7** — Add `GET /api/v1/me`. _Done when:_ returns `public_id` (as `id`), username, display name, and role for the authenticated user.
 - [x] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
 - [x] **D9** — Add rate limiting and lockout backoff on auth endpoints. _Done when:_ repeated bad logins get 429 or lockout; tested.
-- [ ] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
+- [x] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
 - [ ] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (`:id` is the public id; display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
 - [ ] **D12** — Add configurable CORS from allowed origins (empty by default). _Done when:_ allowed and disallowed origins are tested.
 

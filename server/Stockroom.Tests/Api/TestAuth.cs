@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -38,6 +39,16 @@ public static class TestAuth
         Assert.True((await users.CreateAsync(user, Password)).Succeeded);
         Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
         return user;
+    }
+
+    /// <summary>A client logged in as a new user with <paramref name="role"/>.</summary>
+    public static async Task<HttpClient> CreateClientAsAsync(WebApplicationFactory<Program> app, string role)
+    {
+        var user = await CreateUserAsync(app, role);
+        var tokens = await LoginAsync(app, user.UserName!);
+        var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        return client;
     }
 
     public static async Task<Tokens> LoginAsync(WebApplicationFactory<Program> app, string username, string? deviceName = null)

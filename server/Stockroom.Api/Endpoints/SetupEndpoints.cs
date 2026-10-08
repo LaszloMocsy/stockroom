@@ -50,30 +50,17 @@ internal static class SetupEndpoints
             return ApiResults.Error(StatusCodes.Status409Conflict, SetupAlreadyCompleted, "Setup has already been completed.");
         }
 
-        var user = new User { UserName = request.Username, DisplayName = request.DisplayName };
-        var created = await users.CreateAsync(user, request.Password);
-        if (!created.Succeeded)
+        var (user, error) = await UserAccounts.CreateAsync(users, request.Username, request.DisplayName, request.Password, Roles.Admin);
+        if (error is not null)
         {
-            return ApiResults.ValidationFailed(IdentityErrorFields(created.Errors));
-        }
-
-        var addedToRole = await users.AddToRoleAsync(user, Roles.Admin);
-        if (!addedToRole.Succeeded)
-        {
-            throw new InvalidOperationException($"Could not add the first user to {Roles.Admin}: {string.Join(" ", addedToRole.Errors.Select(e => e.Description))}");
+            return error;
         }
 
         await transaction.CommitAsync(cancellationToken);
 
         // No Location header: there is no endpoint for a single user, and /me needs the user to log in first.
-        return TypedResults.Created((string?)null, UserResponse.From(user, Roles.Admin));
+        return TypedResults.Created((string?)null, UserResponse.From(user!, Roles.Admin));
     }
-
-    // Identity reports username and password problems as codes such as "PasswordTooShort" and "InvalidUserName".
-    private static Dictionary<string, string[]> IdentityErrorFields(IEnumerable<IdentityError> errors) =>
-        errors
-            .GroupBy(e => e.Code.StartsWith("Password", StringComparison.Ordinal) ? "password" : "username")
-            .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
 }
 
 /// <summary>Request body for <c>POST /api/v1/setup</c>.</summary>
