@@ -7,6 +7,7 @@ using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Api.Logging;
 using Stockroom.Api.OpenApi;
+using Stockroom.Api.Security;
 using Stockroom.Core;
 using Stockroom.Core.Products;
 using Stockroom.Core.Settings;
@@ -52,6 +53,7 @@ internal static class StockroomApiExtensions
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
 
+        builder.Services.AddStockroomCors();
         builder.Services.AddStockroomAuth();
         builder.Services.AddStockroomErrorHandling();
         builder.Services.AddStockroomOpenApi();
@@ -62,6 +64,11 @@ internal static class StockroomApiExtensions
     {
         app.UseStockroomRequestLogging();
         app.UseStockroomErrorHandling();
+
+        // Before rate limiting and authentication, so their 401 and 429 responses carry CORS headers too
+        // (a browser hides a response without them from the calling script), and so preflight requests,
+        // which carry no credentials, are answered here.
+        app.UseCors();
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
