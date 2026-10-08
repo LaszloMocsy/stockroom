@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Stockroom.Core.Auth;
 using Stockroom.Core.Locations;
 using Stockroom.Core.Products;
 using Stockroom.Core.Stock;
 using Stockroom.Core.Users;
+using Stockroom.Data.Auth;
 using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
 
@@ -33,6 +35,10 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     public DbSet<StoredSetting> Settings => Set<StoredSetting>();
+
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<SigningKey> SigningKeys => Set<SigningKey>();
 
     /// <summary>
     /// Pinned, so the schema does not depend on <c>IdentityOptions.Stores</c>, which the design-time

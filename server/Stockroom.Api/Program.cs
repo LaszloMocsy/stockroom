@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Stockroom.Api;
+using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Endpoints;
 using Stockroom.Api.OpenApi;
@@ -17,6 +18,7 @@ try
     _ = app.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
 
     await app.MigrateDatabaseAsync();
+    await app.LoadAccessTokenKeyAsync();
 
     app.UseStockroomApi();
 
@@ -32,6 +34,7 @@ try
     var v1 = app.MapGroup("/api/v1");
     v1.MapInfoEndpoints();
     v1.MapSetupEndpoints();
+    v1.MapAuthEndpoints();
 
     await app.RunAsync();
     return 0;

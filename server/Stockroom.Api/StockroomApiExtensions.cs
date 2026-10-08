@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Api.Logging;
@@ -51,6 +52,7 @@ internal static class StockroomApiExtensions
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
 
+        builder.Services.AddStockroomAuth();
         builder.Services.AddStockroomErrorHandling();
         builder.Services.AddStockroomOpenApi();
         return builder;
@@ -60,6 +62,8 @@ internal static class StockroomApiExtensions
     {
         app.UseStockroomRequestLogging();
         app.UseStockroomErrorHandling();
+        app.UseAuthentication();
+        app.UseAuthorization();
         return app;
     }
 

@@ -2,8 +2,8 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.5                                              |
-| **Date**    | 2026-10-06                                              |
+| **Status**  | Draft v0.6                                              |
+| **Date**    | 2026-10-08                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
 > This document is versioned in itself. See the [Changelog](#19-changelog) at the bottom for what changed in each revision.
@@ -433,6 +433,8 @@ Every self-hosted server runs its own version, while the mobile app is a single 
 ### 10.2 Authentication
 
 - Login returns a short-lived **access token** (about 15 minutes) and a **refresh token** (rotating, per device, revocable by ADMIN or on password reset).
+- Access tokens are JWTs signed with HMAC-SHA256. They identify the user by public ID and carry the role. The server generates the signing key on first start and stores it in the database, so no secret has to be configured.
+- Refresh tokens are random, opaque strings; the server stores only their SHA-256 hash. Each login starts a new device session, optionally labelled with a client-supplied `device_name` (e.g. "Anna's iPhone").
 - Mobile stores tokens in `expo-secure-store`. Web keeps the access token in memory and the refresh token in an `httpOnly` cookie scoped to the auth endpoints, or in secure storage, to be decided at implementation time.
 - Authorisation is enforced on the server for every request using the `ADMIN`/`STAFF` role claim. Clients hide controls for UX only.
 
@@ -602,6 +604,10 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.6 — 2026-10-08
+
+- **Auth:** access tokens are JWTs signed with a key the server generates and stores in the database; refresh tokens are stored hashed, and login takes an optional `device_name` (section 10.2).
 
 ### v0.5 — 2026-10-06
 
