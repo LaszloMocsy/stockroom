@@ -1,29 +1,23 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Core.Users;
 using Stockroom.Tests.Infrastructure;
+using static Stockroom.Tests.Api.TestAuth;
 
 namespace Stockroom.Tests.Api;
 
 public sealed class LoginEndpointTests(StockroomApiFactory factory, PostgresFixture postgres) : IClassFixture<StockroomApiFactory>
 {
-    private const string Password = "long enough passphrase";
-
-    private static readonly Uri LoginUri = new("/api/v1/auth/login", UriKind.Relative);
-
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -83,7 +77,7 @@ public sealed class LoginEndpointTests(StockroomApiFactory factory, PostgresFixt
         var stored = await RefreshTokensOfAsync(factory, user);
 
         var token = Assert.Single(stored);
-        Assert.Equal(RefreshTokenIssuer.Hash(tokens.RefreshToken), token.TokenHash);
+        Assert.Equal(RefreshTokenService.Hash(tokens.RefreshToken), token.TokenHash);
         Assert.Equal("Anna's iPhone", token.DeviceName);
         Assert.Equal(7, token.Id.Version);
         Assert.Equal(4, token.PublicId.Version);
@@ -181,38 +175,6 @@ public sealed class LoginEndpointTests(StockroomApiFactory factory, PostgresFixt
 
         Assert.True((await ValidateAsync(restarted, tokens.AccessToken)).IsValid);
         Assert.False((await ValidateAsync(otherServer, tokens.AccessToken)).IsValid);
-    }
-
-    // Validates exactly as the API does for an incoming Authorization header.
-    private static async Task<TokenValidationResult> ValidateAsync(StockroomApiFactory app, string accessToken)
-    {
-        var options = app.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
-        return await options.TokenHandlers.Single().ValidateTokenAsync(accessToken, options.TokenValidationParameters);
-    }
-
-    private static async Task<(string AccessToken, string RefreshToken)> LoginAsync(StockroomApiFactory app, string username, string? deviceName = null)
-    {
-        using var client = app.CreateClient();
-        using var response = await client.PostAsJsonAsync(LoginUri, new { username, password = Password, device_name = deviceName }, Token);
-        response.EnsureSuccessStatusCode();
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
-        return (document.RootElement.GetProperty("access_token").GetString()!, document.RootElement.GetProperty("refresh_token").GetString()!);
-    }
-
-    private static async Task<User> CreateUserAsync(StockroomApiFactory app, string role)
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-        var user = new User { UserName = $"user-{Guid.NewGuid():N}", DisplayName = "Test User" };
-        Assert.True((await users.CreateAsync(user, Password)).Succeeded);
-        Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
-        return user;
-    }
-
-    private static async Task<List<Stockroom.Core.Auth.RefreshToken>> RefreshTokensOfAsync(StockroomApiFactory app, User user)
-    {
-        await using var db = TestDatabase.CreateContext(app.Settings[StockroomOptions.DatabaseUrlKey]!);
-        return await db.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync(Token);
     }
 
     private sealed class CountingPasswordHasher : IPasswordHasher<User>

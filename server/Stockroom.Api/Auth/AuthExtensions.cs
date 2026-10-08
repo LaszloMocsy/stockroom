@@ -12,7 +12,7 @@ internal static class AuthExtensions
     {
         services.AddSingleton<AccessTokenKey>();
         services.AddSingleton<AccessTokenIssuer>();
-        services.AddScoped<RefreshTokenIssuer>();
+        services.AddScoped<RefreshTokenService>();
         services.AddScoped<SigningKeyStore>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();

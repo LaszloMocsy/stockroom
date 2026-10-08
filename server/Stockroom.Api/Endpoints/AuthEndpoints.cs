@@ -7,10 +7,11 @@ using Stockroom.Core.Users;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary><c>/api/v1/auth</c>: login and, later, token refresh and logout (spec 10.2).</summary>
+/// <summary><c>/api/v1/auth</c>: login, token refresh, and, later, logout (spec 10.2).</summary>
 internal static class AuthEndpoints
 {
     public const string InvalidCredentials = "invalid_credentials";
+    public const string InvalidRefreshToken = "invalid_refresh_token";
 
     // Hash of a random password, created on the first login attempt for an unknown username.
     private static string? UnknownUserHash;
@@ -26,6 +27,14 @@ internal static class AuthEndpoints
             .WithName("Login")
             .WithSummary("Log in with username and password")
             .WithDescription($"Returns a short-lived access token for the `Authorization: Bearer` header and a refresh token for this device. Wrong credentials return 401 with `{InvalidCredentials}`, whether or not the username exists.");
+
+        auth.MapPost("/refresh", RefreshAsync)
+            .AllowAnonymous()
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .WithName("RefreshTokens")
+            .WithSummary("Exchange a refresh token for new tokens")
+            .WithDescription($"Returns a new access token and a new refresh token; the refresh token sent is used up. Sending a used refresh token again ends the device's session, so every token from that login stops working. An unknown, expired, used, or revoked token returns 401 with `{InvalidRefreshToken}`, and the client has to log in again.");
         return endpoints;
     }
 
@@ -33,7 +42,7 @@ internal static class AuthEndpoints
         LoginRequest request,
         UserManager<User> users,
         AccessTokenIssuer accessTokens,
-        RefreshTokenIssuer refreshTokens,
+        RefreshTokenService refreshTokens,
         CancellationToken cancellationToken)
     {
         var user = await users.FindByNameAsync(request.Username);
@@ -52,9 +61,31 @@ internal static class AuthEndpoints
 
         var deviceName = string.IsNullOrWhiteSpace(request.DeviceName) ? null : request.DeviceName.Trim();
         var refreshToken = await refreshTokens.IssueAsync(user, deviceName, cancellationToken);
-        var accessToken = accessTokens.Issue(user, await users.GetRolesAsync(user));
+        return TypedResults.Ok(await TokensAsync(user, refreshToken, users, accessTokens));
+    }
 
-        return TypedResults.Ok(new TokenResponse("Bearer", accessToken, (int)AccessTokenIssuer.Lifetime.TotalSeconds, refreshToken));
+    private static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> RefreshAsync(
+        RefreshRequest request,
+        UserManager<User> users,
+        AccessTokenIssuer accessTokens,
+        RefreshTokenService refreshTokens,
+        CancellationToken cancellationToken)
+    {
+        var rotation = await refreshTokens.RotateAsync(request.RefreshToken, cancellationToken);
+        var user = rotation is null ? null : await users.FindByIdAsync(rotation.UserId.ToString());
+        if (rotation is null || user is null)
+        {
+            return ApiResults.Error(StatusCodes.Status401Unauthorized, InvalidRefreshToken, "The refresh token is invalid, expired, or revoked. Log in again.");
+        }
+
+        // Roles are read again, so a role change takes effect at the next refresh.
+        return TypedResults.Ok(await TokensAsync(user, rotation.RefreshToken, users, accessTokens));
+    }
+
+    private static async Task<TokenResponse> TokensAsync(User user, string refreshToken, UserManager<User> users, AccessTokenIssuer accessTokens)
+    {
+        var accessToken = accessTokens.Issue(user, await users.GetRolesAsync(user));
+        return new TokenResponse("Bearer", accessToken, (int)AccessTokenIssuer.Lifetime.TotalSeconds, refreshToken);
     }
 }
 
@@ -67,9 +98,13 @@ public sealed record LoginRequest(
     [property: Required, StringLength(128)] string Password,
     [property: StringLength(100)] string? DeviceName = null);
 
+/// <summary>Request body for <c>POST /api/v1/auth/refresh</c>.</summary>
+/// <param name="RefreshToken">The refresh token from the last login or refresh.</param>
+public sealed record RefreshRequest([property: Required, StringLength(256)] string RefreshToken);
+
 /// <summary>Tokens for an authenticated device.</summary>
 /// <param name="TokenType">Always <c>Bearer</c>.</param>
 /// <param name="AccessToken">Send as <c>Authorization: Bearer &lt;access_token&gt;</c>.</param>
 /// <param name="ExpiresIn">Seconds until the access token expires.</param>
-/// <param name="RefreshToken">Exchanges for new tokens when the access token expires. Store it securely.</param>
+/// <param name="RefreshToken">Exchanges for new tokens when the access token expires; works once. Store it securely.</param>
 public sealed record TokenResponse(string TokenType, string AccessToken, int ExpiresIn, string RefreshToken);

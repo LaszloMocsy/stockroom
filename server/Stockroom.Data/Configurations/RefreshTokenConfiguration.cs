@@ -19,6 +19,9 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
         builder.HasIndex(t => t.TokenHash).IsUnique();
         builder.Property(t => t.DeviceName).HasMaxLength(100);
 
+        // Revoking a session updates all of its tokens.
+        builder.HasIndex(t => t.SessionId);
+
         // Tokens belong to their user and have no history worth keeping without it.
         builder.HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
     }
