@@ -32,7 +32,17 @@ internal static class StockroomApiExtensions
             options.UseStockroomDatabase(services.GetRequiredService<IOptions<StockroomOptions>>().Value.DatabaseUrl));
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
-        builder.Services.AddIdentityCore<User>()
+        builder.Services.AddIdentityCore<User>(options =>
+            {
+                // Length rather than composition rules, which push people towards predictable passwords
+                // (NIST SP 800-63B). Identity's default would be 6 characters with a digit, upper- and
+                // lowercase letters, and a symbol.
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+            })
             .AddRoles<IdentityRole<Guid>>()
             .AddUserStore<StockroomUserStore>()
             .AddRoleStore<RoleStore<IdentityRole<Guid>, StockroomDbContext, Guid>>();

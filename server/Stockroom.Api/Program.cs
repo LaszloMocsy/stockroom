@@ -31,6 +31,7 @@ try
 
     var v1 = app.MapGroup("/api/v1");
     v1.MapInfoEndpoints();
+    v1.MapSetupEndpoints();
 
     await app.RunAsync();
     return 0;

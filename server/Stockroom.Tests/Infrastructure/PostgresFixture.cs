@@ -19,7 +19,11 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <summary>Same major version as the Docker Compose example in the specification (12.1).</summary>
     public const string Image = "postgres:17";
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image).Build();
+    // Every test database gets its own connection pool, whose idle connections stay open after the test,
+    // so the default limit of 100 connections runs out once enough API tests run in parallel.
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image)
+        .WithCommand("-c", "max_connections=500")
+        .Build();
     private readonly Lazy<Task> _start;
 
     public PostgresFixture() => _start = new Lazy<Task>(() => _container.StartAsync());
