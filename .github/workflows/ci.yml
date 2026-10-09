@@ -70,4 +70,13 @@ jobs:
       # (Directory.Build.props).
       - run: dotnet build --no-restore --configuration Release
 
+      # Docker Hub rate-limits pulls from shared runner IPs (429 Too Many
+      # Requests). Pull the official image from the AWS ECR Public mirror and
+      # tag it, so Testcontainers finds it locally and does not pull. Keep the
+      # tag in sync with PostgresFixture.Image.
+      - name: Pull PostgreSQL image
+        run: |
+          docker pull public.ecr.aws/docker/library/postgres:17
+          docker tag public.ecr.aws/docker/library/postgres:17 postgres:17
+
       - run: dotnet test --no-build --configuration Release
