@@ -3,13 +3,15 @@ using Npgsql;
 using Stockroom.Core.Locations;
 using Stockroom.Core.Products;
 using Stockroom.Core.Stock;
+using Stockroom.Core.Users;
 using Stockroom.Tests.Infrastructure;
 
 namespace Stockroom.Tests.Data;
 
 public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
 {
-    private static readonly Guid Actor = TestDatabase.Ids.NewInternalId();
+    /// <summary>The default actor, saved to each test's database together with the product.</summary>
+    private static readonly User Actor = TestUsers.New("actor");
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -32,7 +34,7 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
             Reference = "PO-2026-0042",
             VoidsMovementId = received.Id,
             IdempotencyKey = "7c1b0d2e",
-            ActorId = Actor,
+            ActorId = Actor.Id,
             CreatedAt = new DateTimeOffset(2026, 10, 7, 9, 30, 0, TimeSpan.Zero),
         };
         await TestDatabase.AddAsync(databaseUrl, received);
@@ -73,11 +75,13 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
     public async Task DifferentActorsMayUseTheSameIdempotencyKey()
     {
         var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var otherActor = TestUsers.New("other");
+        await TestDatabase.AddAsync(databaseUrl, otherActor);
 
         await TestDatabase.AddAsync(
             databaseUrl,
             Movement(product, idempotencyKey: "retry-me"),
-            Movement(product, idempotencyKey: "retry-me", actorId: TestDatabase.Ids.NewInternalId()));
+            Movement(product, idempotencyKey: "retry-me", actorId: otherActor.Id));
 
         await using var db = TestDatabase.CreateContext(databaseUrl);
         Assert.Equal(2, await db.StockMovements.CountAsync(Token));
@@ -119,6 +123,17 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task TheActorMustBeAnExistingUser()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var unknownActor = Movement(product, actorId: TestDatabase.Ids.NewInternalId());
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestDatabase.AddAsync(databaseUrl, unknownActor));
+
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.ForeignKeyViolation, "fk_stock_movements_users_actor_id");
+    }
+
+    [Fact]
     public async Task ProductHistoryIsIndexedByCreationTime()
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
@@ -137,7 +152,7 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
         var product = TestProducts.New("SR-000001");
-        await TestDatabase.AddAsync(databaseUrl, product);
+        await TestDatabase.AddAsync(databaseUrl, Actor, product);
         return (databaseUrl, product);
     }
 
@@ -162,7 +177,7 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
             Reason = StockMovementReason.Purchase,
             VoidsMovementId = voidsMovementId,
             IdempotencyKey = idempotencyKey,
-            ActorId = actorId ?? Actor,
+            ActorId = actorId ?? Actor.Id,
             CreatedAt = DateTimeOffset.UtcNow,
         };
 }

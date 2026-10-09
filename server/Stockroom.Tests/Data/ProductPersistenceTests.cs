@@ -13,6 +13,8 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
     public async Task AProductIsPersistedWithEveryField()
     {
         var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
+        var creator = TestUsers.New("anna");
+        await TestDatabase.AddAsync(databaseUrl, creator);
         var createdAt = new DateTimeOffset(2026, 10, 7, 9, 30, 0, TimeSpan.Zero);
         var product = new Product
         {
@@ -25,7 +27,7 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
             ArchivedAt = createdAt.AddDays(2),
             CreatedAt = createdAt,
             UpdatedAt = createdAt.AddDays(1),
-            CreatedBy = TestDatabase.Ids.NewInternalId(),
+            CreatedBy = creator.Id,
         };
 
         await using (var db = TestDatabase.CreateContext(databaseUrl))
@@ -61,6 +63,17 @@ public sealed class ProductPersistenceTests(PostgresFixture postgres)
             Assert.Null(loaded.ArchivedAt);
             Assert.Null(loaded.CreatedBy);
         }
+    }
+
+    [Fact]
+    public async Task TheCreatorMustBeAnExistingUser()
+    {
+        var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
+        var product = TestProducts.New("SR-000001", createdBy: TestDatabase.Ids.NewInternalId());
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => TestDatabase.AddAsync(databaseUrl, product));
+
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.ForeignKeyViolation, "fk_products_users_created_by");
     }
 
     [Fact]

@@ -29,11 +29,16 @@ public sealed class TestApi : IAsyncDisposable
 
     public CapturingLoggerProvider Logs { get; }
 
-    public static async Task<TestApi> StartAsync(Action<IEndpointRouteBuilder> mapEndpoints)
+    public IServiceProvider Services => _app.Services;
+
+    /// <param name="mapEndpoints">Maps the test endpoints.</param>
+    /// <param name="settings">Settings added to, or replacing, <see cref="StockroomApiFactory.ValidSettings"/>.</param>
+    public static async Task<TestApi> StartAsync(Action<IEndpointRouteBuilder> mapEndpoints, IReadOnlyDictionary<string, string?>? settings = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(StockroomApiFactory.ValidSettings);
+        builder.Configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>());
         builder.AddStockroomApi();
 
         // The validation source generator only discovers types in the assembly that calls AddValidation,

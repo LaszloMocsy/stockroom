@@ -17,4 +17,11 @@ public static class ApiResults
             statusCode: statusCode,
             detail: message,
             extensions: new Dictionary<string, object?> { [CodeKey] = code, [DetailsKey] = details });
+
+    /// <summary>
+    /// A <c>validation_failed</c> error for checks that DataAnnotations cannot express, with the same
+    /// <c>details.fields</c> shape as request validation. Field names are converted to snake_case.
+    /// </summary>
+    public static ProblemHttpResult ValidationFailed(IDictionary<string, string[]> fields) =>
+        TypedResults.Problem(new HttpValidationProblemDetails(fields) { Status = StatusCodes.Status400BadRequest });
 }

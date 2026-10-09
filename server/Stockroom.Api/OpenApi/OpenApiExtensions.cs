@@ -24,18 +24,20 @@ internal static class OpenApiExtensions
     /// from it. The interactive reference at <c>/api/docs</c> is a development tool and is only mapped in
     /// the Development environment.
     /// </summary>
-    public static WebApplication MapStockroomOpenApi(this WebApplication app)
+    public static IEndpointRouteBuilder MapStockroomOpenApi(this IEndpointRouteBuilder endpoints, IHostEnvironment environment)
     {
-        app.MapOpenApi(DocumentRoutePattern);
+        // Public: clients are generated from it, and it reveals nothing the endpoints themselves do not.
+        endpoints.MapOpenApi(DocumentRoutePattern).AllowAnonymous();
 
-        if (app.Environment.IsDevelopment())
+        if (environment.IsDevelopment())
         {
-            app.MapScalarApiReference("/api/docs", options => options
+            endpoints.MapScalarApiReference("/api/docs", options => options
                 .WithTitle("Stockroom API")
                 .AddDocument(DocumentName)
-                .OpenApiRoutePattern = DocumentRoutePattern);
+                .OpenApiRoutePattern = DocumentRoutePattern)
+                .AllowAnonymous();
         }
 
-        return app;
+        return endpoints;
     }
 }

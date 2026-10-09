@@ -86,18 +86,18 @@ _Spec: 3.1, 3.2._
 
 _Spec: 2, 4.7, 10.2, 11._
 
-- [ ] **D1** — Add ASP.NET Core Identity with EF stores (Guid keys, UUID v7 `id` plus a unique `public_id` UUID v4 on users) and the `ADMIN` and `STAFF` roles seeded. _Done when:_ migration applies, both roles exist, and users get both ids.
-- [ ] **D2** — Make `setup_required` in `/info` real (true when no users exist). _Done when:_ tested with and without users.
-- [ ] **D3** — Add `POST /api/v1/setup` creating the first ADMIN; reject once any user exists. _Done when:_ second call returns 409; tested.
-- [ ] **D4** — Add `POST /api/v1/auth/login` returning a short-lived access token and a refresh token. _Done when:_ valid and invalid credentials are tested.
-- [ ] **D5** — Store refresh tokens hashed, per device, and add `POST /api/v1/auth/refresh` with rotation and reuse detection. _Done when:_ reusing a rotated token revokes the chain; tested.
-- [ ] **D6** — Add `POST /api/v1/auth/logout` revoking the device's refresh token. _Done when:_ the revoked token can no longer refresh; tested.
-- [ ] **D7** — Add `GET /api/v1/me`. _Done when:_ returns `public_id` (as `id`), username, display name, and role for the authenticated user.
-- [ ] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
-- [ ] **D9** — Add rate limiting and lockout backoff on auth endpoints. _Done when:_ repeated bad logins get 429 or lockout; tested.
-- [ ] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
-- [ ] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (`:id` is the public id; display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
-- [ ] **D12** — Add configurable CORS from allowed origins (empty by default). _Done when:_ allowed and disallowed origins are tested.
+- [x] **D1** — Add ASP.NET Core Identity with EF stores (Guid keys, UUID v7 `id` plus a unique `public_id` UUID v4 on users) and the `ADMIN` and `STAFF` roles seeded. _Done when:_ migration applies, both roles exist, and users get both ids.
+- [x] **D2** — Make `setup_required` in `/info` real (true when no users exist). _Done when:_ tested with and without users.
+- [x] **D3** — Add `POST /api/v1/setup` creating the first ADMIN; reject once any user exists. _Done when:_ second call returns 409; tested.
+- [x] **D4** — Add `POST /api/v1/auth/login` returning a short-lived access token and a refresh token. _Done when:_ valid and invalid credentials are tested.
+- [x] **D5** — Store refresh tokens hashed, per device, and add `POST /api/v1/auth/refresh` with rotation and reuse detection. _Done when:_ reusing a rotated token revokes the chain; tested.
+- [x] **D6** — Add `POST /api/v1/auth/logout` revoking the device's refresh token. _Done when:_ the revoked token can no longer refresh; tested.
+- [x] **D7** — Add `GET /api/v1/me`. _Done when:_ returns `public_id` (as `id`), username, display name, and role for the authenticated user.
+- [x] **D8** — Add authorisation policies (`RequireStaff`, `RequireAdmin`) and a convention that all endpoints require auth unless marked public. _Done when:_ a test fails any endpoint accidentally left anonymous.
+- [x] **D9** — Add rate limiting and lockout backoff on auth endpoints. _Done when:_ repeated bad logins get 429 or lockout; tested.
+- [x] **D10** — Add ADMIN endpoint `POST /api/v1/users` to create a STAFF (or ADMIN) user. _Done when:_ STAFF callers get 403; tested.
+- [x] **D11** — Add ADMIN endpoints `GET /api/v1/users` and `PATCH /api/v1/users/:id` (`:id` is the public id; display name, role, password reset). _Done when:_ tested, including that the last ADMIN cannot be demoted.
+- [x] **D12** — Add configurable CORS from allowed origins (empty by default). _Done when:_ allowed and disallowed origins are tested.
 
 ## E. Stock ledger (the core)
 

@@ -1,15 +1,21 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Api.Logging;
 using Stockroom.Api.OpenApi;
+using Stockroom.Api.Security;
 using Stockroom.Core;
 using Stockroom.Core.Products;
 using Stockroom.Core.Settings;
+using Stockroom.Core.Users;
 using Stockroom.Data;
 using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
+using Stockroom.Data.Users;
 
 namespace Stockroom.Api;
 
@@ -28,11 +34,27 @@ internal static class StockroomApiExtensions
             options.UseStockroomDatabase(services.GetRequiredService<IOptions<StockroomOptions>>().Value.DatabaseUrl));
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
+        builder.Services.AddIdentityCore<User>(options =>
+            {
+                // Length rather than composition rules, which push people towards predictable passwords
+                // (NIST SP 800-63B). Identity's default would be 6 characters with a digit, upper- and
+                // lowercase letters, and a symbol.
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddUserStore<StockroomUserStore>()
+            .AddRoleStore<RoleStore<IdentityRole<Guid>, StockroomDbContext, Guid>>();
 
         // JSON field names are snake_case throughout the API (spec 10).
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
 
+        builder.Services.AddStockroomCors();
+        builder.Services.AddStockroomAuth();
         builder.Services.AddStockroomErrorHandling();
         builder.Services.AddStockroomOpenApi();
         return builder;
@@ -42,6 +64,14 @@ internal static class StockroomApiExtensions
     {
         app.UseStockroomRequestLogging();
         app.UseStockroomErrorHandling();
+
+        // Before rate limiting and authentication, so their 401 and 429 responses carry CORS headers too
+        // (a browser hides a response without them from the calling script), and so preflight requests,
+        // which carry no credentials, are answered here.
+        app.UseCors();
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
         return app;
     }
 
