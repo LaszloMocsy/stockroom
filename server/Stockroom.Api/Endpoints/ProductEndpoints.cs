@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Claims;
@@ -13,7 +14,7 @@ using Stockroom.Data.Stock;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary><c>/api/v1/products</c>: the catalogue (spec 4.1). Any logged-in user can create products.</summary>
+/// <summary><c>/api/v1/products</c>: the catalogue (spec 4.1). Any logged-in user can read and create products.</summary>
 internal static class ProductEndpoints
 {
     public const string SkuTaken = "sku_taken";
@@ -40,7 +41,25 @@ internal static class ProductEndpoints
 
                 A `sku` that another product has returns 409 with `{SkuTaken}`, and a `barcode` that another product has returns 409 with `{BarcodeTaken}`; `details.product_id` is that product's ID.
                 """));
+
+        products.MapGet("/{id:guid}", GetProductAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("GetProduct")
+            .WithSummary("Get a product")
+            .WithDescription("Returns the product `id` with its barcodes and the units on hand. Archived products are returned too; `archived_at` tells them apart.");
         return endpoints;
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> GetProductAsync(
+        [Description("Public ID of the product.")] Guid id,
+        StockroomDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var product = await ProductResponse.Project(db.Products.Where(p => p.PublicId == id), db).SingleOrDefaultAsync(cancellationToken);
+        return product is null
+            ? ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no product with this ID.")
+            : TypedResults.Ok(product);
     }
 
     private static async Task<Results<Created<ProductResponse>, ProblemHttpResult>> CreateProductAsync(
@@ -123,7 +142,7 @@ internal static class ProductEndpoints
         await transaction.CommitAsync(cancellationToken);
 
         var response = await ProductResponse.Project(db.Products.Where(p => p.Id == product.Id), db).SingleAsync(cancellationToken);
-        return TypedResults.Created((string?)null, response);
+        return TypedResults.Created($"/api/v1/products/{response.Id}", response);
     }
 
     /// <summary>
