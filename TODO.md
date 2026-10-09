@@ -122,7 +122,7 @@ _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 
 _Spec: 3.1, 4.1, 4.6, 7.1, 10._
 
-- [ ] **F1** — Add `POST /api/v1/products` (name, optional SKU, description, `min_stock`, optional barcode, optional initial quantity). _Done when:_ SKU auto-generation, duplicate SKU/barcode errors, and the `initial` movement are tested.
+- [x] **F1** — Add `POST /api/v1/products` (name, optional SKU, description, `min_stock`, optional barcode, optional initial quantity). _Done when:_ SKU auto-generation, duplicate SKU/barcode errors, and the `initial` movement are tested.
 - [ ] **F2** — Add `GET /api/v1/products/:id` including current quantity. _Done when:_ tested, with 404 for unknown ids. `:id` is the public id; the internal id is absent from the response.
 - [ ] **F3** — Add `GET /api/v1/products` with cursor pagination and sorting. _Done when:_ tested with more than one page.
 - [ ] **F4** — Add the `q` search (name, SKU, barcode) with a trigram index. _Done when:_ partial and case-insensitive matches are tested.
