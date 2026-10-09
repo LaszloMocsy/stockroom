@@ -140,7 +140,7 @@ _Spec: 14._
 
 - [x] **G1** — Add a dev seed command that creates an ADMIN, a STAFF user, and about 50 realistic products with movements. _Done when:_ running it twice is idempotent.
 - [x] **G2** — Add `docker/compose.dev.yml` running PostgreSQL for local development. _Done when:_ `docker compose up` provides a working database for the API.
-- [ ] **G3** — Add a `docs/development.md` covering prerequisites, running the API, tests, and seeding. _Done when:_ a new contributor can follow it from a clean checkout.
+- [x] **G3** — Add a `docs/development.md` covering prerequisites, running the API, tests, and seeding. _Done when:_ a new contributor can follow it from a clean checkout.
 - [ ] **G4** — Add .NET build and test to the CI workflow. _Done when:_ CI runs `dotnet build` and `dotnet test` with Testcontainers.
 
 ## H. API contract and generated client
