@@ -16,14 +16,17 @@
   ],
   "scripts": {
     "generate": "openapi-typescript ../../server/openapi/openapi.v1.json --output src/generated/schema.ts",
-    "build": "pnpm run generate && tsc",
-    "typecheck": "pnpm run generate && tsc --noEmit"
+    "build": "pnpm run generate && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm run generate && tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
   }
 }

@@ -132,6 +132,13 @@ dotnet test --project Stockroom.Tests -- --filter-method '*Idempotent*'
 
 Tests are organised by layer: `Core` (pure unit tests), `Data` (EF Core and the stock ledger against PostgreSQL), and `Api` (HTTP endpoints, hosted in memory with `WebApplicationFactory`, and a few that start the API as a separate process).
 
+The TypeScript API client has its own unit tests, run with [Vitest](https://vitest.dev) against a mock `fetch`, so they need neither Docker nor a running API:
+
+```sh
+pnpm --filter api-client test
+pnpm --filter api-client typecheck   # also type-checks the tests against the generated types
+```
+
 ## Change the database schema
 
 Migrations live in `server/Stockroom.Data/Migrations` and are applied automatically when the API starts. After changing an entity or its configuration:
@@ -166,6 +173,8 @@ Within `/api/v1`, changes must be additive: new endpoints and fields are fine, b
 pnpm format:check              # Prettier, as in CI; `pnpm format` fixes it
 (cd server && dotnet build)    # warnings and code-style violations fail the build
 (cd server && dotnet test)
+pnpm --filter api-client typecheck
+pnpm --filter api-client test
 ```
 
 ## Troubleshooting
