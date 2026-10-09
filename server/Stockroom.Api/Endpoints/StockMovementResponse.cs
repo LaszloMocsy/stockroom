@@ -29,8 +29,9 @@ public sealed record StockMovementResponse(
     DateTimeOffset CreatedAt)
 {
     /// <summary>
-    /// <paramref name="movements"/> as responses, resolving internal IDs to public ones in the database.
-    /// Filter the movements before projecting: EF cannot translate a filter on the projected record.
+    /// <paramref name="movements"/> as responses, newest first (by <c>created_at</c>, then public ID), resolving
+    /// internal IDs to public ones in the database. Filter the movements before projecting: EF cannot
+    /// translate a filter or ordering on the projected record.
     /// </summary>
     internal static IQueryable<StockMovementResponse> Project(IQueryable<StockMovement> movements, StockroomDbContext db) =>
         from movement in movements
@@ -38,6 +39,7 @@ public sealed record StockMovementResponse(
         join actor in db.Users on movement.ActorId equals actor.Id
         join voided in db.StockMovements on movement.VoidsMovementId equals voided.Id into voids
         from voided in voids.DefaultIfEmpty()
+        orderby movement.CreatedAt descending, movement.PublicId descending
         select new StockMovementResponse(
             movement.PublicId,
             product.PublicId,

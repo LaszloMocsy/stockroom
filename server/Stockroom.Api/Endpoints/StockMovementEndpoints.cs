@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,10 @@ using Stockroom.Data.Stock;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary><c>/api/v1/stock/movements</c>: changing stock through the ledger (spec 3.2, 4.2), for any logged-in user.</summary>
+/// <summary>
+/// <c>/api/v1/stock/movements</c>: the ledger (spec 3.2, 4.2). Any logged-in user can read it and change stock
+/// through it.
+/// </summary>
 internal static class StockMovementEndpoints
 {
     public const string InsufficientStock = "insufficient_stock";
@@ -24,9 +29,23 @@ internal static class StockMovementEndpoints
     public const string IdempotencyKeyHeader = "Idempotency-Key";
     public const int MaxIdempotencyKeyLength = 255;
 
+    public const int DefaultPageSize = 50;
+    public const int MaxPageSize = 100;
+
     public static IEndpointRouteBuilder MapStockMovementEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var movements = endpoints.MapGroup("/stock/movements").WithTags("Stock");
+
+        movements.MapGet("", ListMovementsAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .WithName("ListStockMovements")
+            .WithSummary("List stock movements")
+            .WithDescription(string.Create(
+                CultureInfo.InvariantCulture,
+                $"""
+                Returns movements newest first, optionally filtered; all filters combine. An unknown `product` or `actor` matches nothing. Pages hold up to `limit` movements ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same filters for the next page, until it is `null`.
+                """));
 
         movements.MapPost("", CreateMovementAsync)
             .Produces(StatusCodes.Status204NoContent)
@@ -46,6 +65,108 @@ internal static class StockMovementEndpoints
                 Send an `{IdempotencyKeyHeader}` header (up to {MaxIdempotencyKeyLength} characters, unique per user) to make retries safe: repeating a request with a key that already recorded a movement returns that movement again and changes nothing.
                 """));
         return endpoints;
+    }
+
+    private static async Task<Results<Ok<ListResponse<StockMovementResponse>>, ProblemHttpResult>> ListMovementsAsync(
+        [Description("Public ID of the product.")] Guid? product,
+        [Description("Movement type: `receive`, `issue`, `adjust`, `initial`, or `void`.")] string? type,
+        [Description("Public ID of the user who made the movement.")] Guid? actor,
+        [Description("Earliest `created_at` to include, as an ISO 8601 timestamp.")] DateTimeOffset? from,
+        [Description("Exclusive end: only movements created before this ISO 8601 timestamp.")] DateTimeOffset? to,
+        [Description("`next_cursor` from the previous page.")] string? cursor,
+        [Description("Page size.")] int? limit,
+        StockroomDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var after = default(StockMovementCursor?);
+        if (cursor is not null)
+        {
+            if (StockMovementCursor.TryDecode(cursor, out var decoded))
+            {
+                after = decoded;
+            }
+            else
+            {
+                errors[nameof(cursor)] = ["The cursor is not one this API returned."];
+            }
+        }
+
+        // Bound as text: the query-string binder would want the C# name ("Issue") and also accept numbers.
+        var movementType = default(StockMovementType?);
+        if (type is not null)
+        {
+            movementType = Enum.GetValues<StockMovementType>()
+                .Select(t => (StockMovementType?)t)
+                .SingleOrDefault(t => JsonNamingPolicy.SnakeCaseLower.ConvertName(t.ToString()!) == type);
+            if (movementType is null)
+            {
+                errors[nameof(type)] = ["The type must be receive, issue, adjust, initial, or void."];
+            }
+        }
+
+        if (limit is < 1 or > MaxPageSize)
+        {
+            errors[nameof(limit)] = [$"The limit must be between 1 and {MaxPageSize}."];
+        }
+
+        if (from is not null && to is not null && to <= from)
+        {
+            errors[nameof(to)] = ["The end must be after the start."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return ApiResults.ValidationFailed(errors);
+        }
+
+        var movements = db.StockMovements.AsQueryable();
+        if (product is not null)
+        {
+            var productId = await db.Products.Where(p => p.PublicId == product).Select(p => (Guid?)p.Id).SingleOrDefaultAsync(cancellationToken);
+            movements = movements.Where(m => m.ProductId == productId);
+        }
+
+        if (actor is not null)
+        {
+            var actorId = await db.Users.Where(u => u.PublicId == actor).Select(u => (Guid?)u.Id).SingleOrDefaultAsync(cancellationToken);
+            movements = movements.Where(m => m.ActorId == actorId);
+        }
+
+        if (movementType is not null)
+        {
+            movements = movements.Where(m => m.Type == movementType);
+        }
+
+        // PostgreSQL stores timestamps in UTC, and Npgsql only accepts UTC values for them.
+        if (from is not null)
+        {
+            var start = from.Value.ToUniversalTime();
+            movements = movements.Where(m => m.CreatedAt >= start);
+        }
+
+        if (to is not null)
+        {
+            var end = to.Value.ToUniversalTime();
+            movements = movements.Where(m => m.CreatedAt < end);
+        }
+
+        // Keyset pagination: everything sorted after the previous page's last movement.
+        if (after is { } last)
+        {
+            movements = movements.Where(m => EF.Functions.LessThan(
+                ValueTuple.Create(m.CreatedAt, m.PublicId),
+                ValueTuple.Create(last.CreatedAt, last.PublicId)));
+        }
+
+        // One extra row tells whether another page follows.
+        var pageSize = limit ?? DefaultPageSize;
+        var items = await StockMovementResponse.Project(movements, db).Take(pageSize + 1).ToListAsync(cancellationToken);
+        var nextCursor = items.Count > pageSize
+            ? new StockMovementCursor(items[pageSize - 1].CreatedAt, items[pageSize - 1].Id).Encode()
+            : null;
+
+        return TypedResults.Ok(new ListResponse<StockMovementResponse>(items.Take(pageSize).ToList(), nextCursor));
     }
 
     private static async Task<Results<Created<StockMovementResponse>, NoContent, ProblemHttpResult>> CreateMovementAsync(
