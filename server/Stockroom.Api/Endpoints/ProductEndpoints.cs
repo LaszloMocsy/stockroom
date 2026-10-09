@@ -17,7 +17,7 @@ using Stockroom.Data.Stock;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary><c>/api/v1/products</c>: the catalogue (spec 4.1). Any logged-in user can read and create products.</summary>
+/// <summary><c>/api/v1/products</c>: the catalogue (spec 4.1). Any logged-in user can read, create, and edit products; archiving and restoring them is for ADMIN users.</summary>
 internal static class ProductEndpoints
 {
     public const string SkuTaken = "sku_taken";
@@ -82,6 +82,24 @@ internal static class ProductEndpoints
 
                 The SKU never changes: a `sku` field, like any field products do not have, is a validation error. Quantities change only through stock movements.
                 """);
+
+        products.MapPost("/{id:guid}/archive", ArchiveProductAsync)
+            .RequireAdmin()
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("ArchiveProduct")
+            .WithSummary("Archive a product")
+            .WithDescription("Archives the product `id` and returns it. ADMIN only. Archived products keep their stock and history but are left out of the product list unless it asks for them. Archiving an archived product changes nothing, so its `archived_at` stays the time it was first archived.");
+
+        products.MapPost("/{id:guid}/restore", RestoreProductAsync)
+            .RequireAdmin()
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("RestoreProduct")
+            .WithSummary("Restore an archived product")
+            .WithDescription("Makes the archived product `id` active again and returns it. ADMIN only. Restoring an active product changes nothing.");
         return endpoints;
     }
 
@@ -219,6 +237,31 @@ internal static class ProductEndpoints
         }
 
         return TypedResults.Ok(await ProductResponse.Project(db.Products.Where(p => p.Id == product.Id), db).SingleAsync(cancellationToken));
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> ArchiveProductAsync(
+        [Description("Public ID of the product.")] Guid id,
+        StockroomDbContext db,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        // Guarded, so a repeated or concurrent archive keeps the first archived_at.
+        var now = time.GetUtcNow();
+        await db.Products
+            .Where(p => p.PublicId == id && p.ArchivedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.ArchivedAt, now), cancellationToken);
+        return await GetProductAsync(id, db, cancellationToken);
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> RestoreProductAsync(
+        [Description("Public ID of the product.")] Guid id,
+        StockroomDbContext db,
+        CancellationToken cancellationToken)
+    {
+        await db.Products
+            .Where(p => p.PublicId == id && p.ArchivedAt != null)
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.ArchivedAt, (DateTimeOffset?)null), cancellationToken);
+        return await GetProductAsync(id, db, cancellationToken);
     }
 
     private static async Task<Results<Created<ProductResponse>, ProblemHttpResult>> CreateProductAsync(
