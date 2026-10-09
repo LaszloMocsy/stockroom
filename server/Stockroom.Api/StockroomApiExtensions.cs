@@ -10,6 +10,7 @@ using Stockroom.Api.Jobs;
 using Stockroom.Api.Logging;
 using Stockroom.Api.OpenApi;
 using Stockroom.Api.Security;
+using Stockroom.Api.Seeding;
 using Stockroom.Core;
 using Stockroom.Core.Products;
 using Stockroom.Core.Settings;
@@ -40,6 +41,7 @@ internal static class StockroomApiExtensions
         builder.Services.AddScoped<StockService>();
         builder.Services.AddScoped<StockReconciler>();
         builder.Services.AddHostedService<StockReconciliationJob>();
+        builder.Services.AddScoped<DevSeeder>();
         builder.Services.AddIdentityCore<User>(options =>
             {
                 // Length rather than composition rules, which push people towards predictable passwords

@@ -4,6 +4,7 @@ using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Endpoints;
 using Stockroom.Api.OpenApi;
+using Stockroom.Api.Seeding;
 using Stockroom.Data;
 
 try
@@ -16,6 +17,11 @@ try
     // Fail fast with a readable message. ValidateOnStart would catch this too, but only after
     // the host has logged the failure with a stack trace.
     _ = app.Services.GetRequiredService<IOptions<StockroomOptions>>().Value;
+
+    if (DevSeedCommand.IsRequested(args))
+    {
+        return await DevSeedCommand.RunAsync(app);
+    }
 
     await app.MigrateDatabaseAsync();
     await app.LoadAccessTokenKeyAsync();
