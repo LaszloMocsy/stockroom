@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Stockroom.Core.Identifiers;
 using Stockroom.Core.Locations;
+using Stockroom.Core.Settings;
 using Stockroom.Core.Stock;
 
 namespace Stockroom.Data.Stock;
@@ -15,7 +16,7 @@ namespace Stockroom.Data.Stock;
 /// Products and actors are internal IDs; resolving public IDs is the API's job. Until locations arrive
 /// (P1), every movement is at <see cref="Location.MainStorageId"/>.
 /// </remarks>
-public sealed class StockService(StockroomDbContext db, IIdGenerator ids, TimeProvider time)
+public sealed class StockService(StockroomDbContext db, ISettingsStore settings, IIdGenerator ids, TimeProvider time)
 {
     /// <summary>Adds <see cref="ReceiveStock.Quantity"/> units and returns the <c>receive</c> movement.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
@@ -34,7 +35,10 @@ public sealed class StockService(StockroomDbContext db, IIdGenerator ids, TimePr
 
     /// <summary>Removes <see cref="IssueStock.Quantity"/> units and returns the <c>issue</c> movement.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
-    /// <exception cref="InsufficientStockException">Fewer units are on hand than requested; nothing is written.</exception>
+    /// <exception cref="InsufficientStockException">
+    /// Fewer units are on hand than requested and <see cref="StockroomSettings.AllowNegativeStock"/> is off;
+    /// nothing is written.
+    /// </exception>
     public Task<StockMovement> IssueAsync(IssueStock request, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(request.Quantity);
@@ -42,9 +46,11 @@ public sealed class StockService(StockroomDbContext db, IIdGenerator ids, TimePr
         return InTransactionAsync(async () =>
         {
             // The lock holds off concurrent movements until this transaction ends, so the quantity checked
-            // is still the quantity when the level is updated, and parallel issues cannot oversell.
+            // is still the quantity when the level is updated, and parallel issues cannot oversell. The
+            // setting is read only when it matters, so a normal issue costs no extra query.
             var available = await LockLevelAsync(request.ProductId, Location.MainStorageId, cancellationToken);
-            if (available < request.Quantity)
+            if (available < request.Quantity
+                && !await settings.GetAsync(StockroomSettings.AllowNegativeStock, cancellationToken))
             {
                 throw new InsufficientStockException(request.Quantity, available);
             }

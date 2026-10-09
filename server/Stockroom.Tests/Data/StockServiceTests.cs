@@ -3,9 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Stockroom.Core.Locations;
 using Stockroom.Core.Products;
+using Stockroom.Core.Settings;
 using Stockroom.Core.Stock;
 using Stockroom.Core.Users;
 using Stockroom.Data;
+using Stockroom.Data.Settings;
 using Stockroom.Data.Stock;
 using Stockroom.Tests.Api;
 using Stockroom.Tests.Infrastructure;
@@ -240,6 +242,45 @@ public sealed class StockServiceTests(PostgresFixture postgres)
         await AssertNothingWrittenAsync(databaseUrl);
     }
 
+    [Fact]
+    public async Task IssuingMoreThanIsOnHandIsRejectedWhenNegativeStockIsExplicitlyNotAllowed()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await SetAllowNegativeStockAsync(databaseUrl, false);
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        await Assert.ThrowsAsync<InsufficientStockException>(
+            () => IssueAsync(databaseUrl, new IssueStock(product.Id, 4, Actor.Id)));
+
+        Assert.Equal(3, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AnIssueMayGoBelowZeroWhenNegativeStockIsAllowed()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await SetAllowNegativeStockAsync(databaseUrl, true);
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        var movement = await IssueAsync(databaseUrl, new IssueStock(product.Id, 5, Actor.Id));
+
+        Assert.Equal(-5, movement.Delta);
+        Assert.Equal(-2, movement.QuantityAfter);
+        Assert.Equal(-2, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AProductThatNeverHadStockMayGoBelowZeroWhenNegativeStockIsAllowed()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await SetAllowNegativeStockAsync(databaseUrl, true);
+
+        var movement = await IssueAsync(databaseUrl, new IssueStock(product.Id, 2, Actor.Id));
+
+        Assert.Equal(-2, movement.QuantityAfter);
+        Assert.Equal(-2, await QuantityAsync(databaseUrl, product));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-4)]
@@ -272,7 +313,7 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     private static StockService Service(StockroomDbContext db) =>
-        new(db, TestDatabase.Ids, new FakeTimeProvider(Now));
+        new(db, new SettingsStore(db), TestDatabase.Ids, new FakeTimeProvider(Now));
 
     private static async Task<StockMovement> ReceiveAsync(string databaseUrl, ReceiveStock request)
     {
@@ -284,6 +325,12 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     {
         await using var db = TestDatabase.CreateContext(databaseUrl);
         return await Service(db).IssueAsync(request, Token);
+    }
+
+    private static async Task SetAllowNegativeStockAsync(string databaseUrl, bool allowed)
+    {
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        await new SettingsStore(db).SetAsync(StockroomSettings.AllowNegativeStock, allowed, Token);
     }
 
     private static async Task<int> QuantityAsync(string databaseUrl, Product product)
