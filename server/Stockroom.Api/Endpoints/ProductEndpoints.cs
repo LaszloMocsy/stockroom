@@ -24,9 +24,23 @@ internal static class ProductEndpoints
     private const string SkuIndex = "ix_products_sku";
     private const string BarcodeIndex = "ix_product_barcodes_barcode";
 
+    public const int DefaultPageSize = 50;
+    public const int MaxPageSize = 100;
+
     public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var products = endpoints.MapGroup("/products").WithTags("Products");
+
+        products.MapGet("", ListProductsAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .WithName("ListProducts")
+            .WithSummary("List products")
+            .WithDescription(string.Create(
+                CultureInfo.InvariantCulture,
+                $"""
+                Returns products sorted by `sort`: `name` (the default), `sku`, or `created_at`, with a leading `-` for descending, e.g. `-created_at` for newest first. Products that tie are ordered by ID. Pages hold up to `limit` products ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same `sort` for the next page, until it is `null`.
+                """));
 
         products.MapPost("", CreateProductAsync)
             .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
@@ -49,6 +63,53 @@ internal static class ProductEndpoints
             .WithSummary("Get a product")
             .WithDescription("Returns the product `id` with its barcodes and the units on hand. Archived products are returned too; `archived_at` tells them apart.");
         return endpoints;
+    }
+
+    private static async Task<Results<Ok<ListResponse<ProductResponse>>, ProblemHttpResult>> ListProductsAsync(
+        [Description("`name`, `sku`, or `created_at`; a leading `-` sorts descending.")] string? sort,
+        [Description("`next_cursor` from the previous page.")] string? cursor,
+        [Description("Page size.")] int? limit,
+        StockroomDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var order = ProductSort.Default;
+        if (sort is not null && !ProductSort.TryParse(sort, out order))
+        {
+            errors[nameof(sort)] = ["The sort must be name, sku, or created_at, optionally with a leading -."];
+        }
+
+        var after = default(ProductCursor?);
+        if (cursor is not null && errors.Count == 0)
+        {
+            if (ProductCursor.TryDecode(cursor, order, out var decoded))
+            {
+                after = decoded;
+            }
+            else
+            {
+                errors[nameof(cursor)] = ["The cursor is not one this API returned for this sort."];
+            }
+        }
+
+        if (limit is < 1 or > MaxPageSize)
+        {
+            errors[nameof(limit)] = [$"The limit must be between 1 and {MaxPageSize}."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return ApiResults.ValidationFailed(errors);
+        }
+
+        // One extra row tells whether another page follows.
+        var pageSize = limit ?? DefaultPageSize;
+        var items = await ProductResponse.Project(order.Apply(db.Products, after), db).Take(pageSize + 1).ToListAsync(cancellationToken);
+        var nextCursor = items.Count > pageSize
+            ? new ProductCursor(order, order.KeyOf(items[pageSize - 1]), items[pageSize - 1].Id).Encode()
+            : null;
+
+        return TypedResults.Ok(new ListResponse<ProductResponse>(items.Take(pageSize).ToList(), nextCursor));
     }
 
     private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> GetProductAsync(
