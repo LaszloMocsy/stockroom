@@ -112,7 +112,7 @@ _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 - [x] **E7** — Add idempotency: a repeated key from the same actor returns the original result and writes nothing. _Done when:_ tested, including concurrent duplicates.
 - [x] **E8** — Add a concurrency test: many parallel `Issue` calls never oversell. _Done when:_ test is deterministic and passes repeatedly.
 - [x] **E9** — Add reconciliation: `SUM(delta)` per product/location versus the cached level, reporting drift. _Done when:_ a test that corrupts a level makes it report drift.
-- [ ] **E10** — Add a property-based test: random operation sequences keep levels equal to the ledger sum. _Done when:_ test runs in CI within a reasonable time.
+- [x] **E10** — Add a property-based test: random operation sequences keep levels equal to the ledger sum. _Done when:_ test runs in CI within a reasonable time.
 - [ ] **E11** — Add `POST /api/v1/stock/movements` (`receive`, `issue`, `adjust`) with validation and `Idempotency-Key` support. _Done when:_ endpoint tests cover each type and error codes.
 - [ ] **E12** — Add `GET /api/v1/stock/movements` with filters (product, type, actor, from, to) and cursor pagination. _Done when:_ pagination and filters are tested.
 - [ ] **E13** — Add `POST /api/v1/stock/movements/:id/void`, allowed for ADMIN or the original actor within the undo window (configurable, default 5 minutes). _Done when:_ permission cases are tested.
