@@ -36,6 +36,7 @@ internal static class StockroomApiExtensions
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
         builder.Services.AddScoped<StockService>();
+        builder.Services.AddScoped<StockReconciler>();
         builder.Services.AddIdentityCore<User>(options =>
             {
                 // Length rather than composition rules, which push people towards predictable passwords
