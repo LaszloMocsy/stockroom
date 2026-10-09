@@ -116,7 +116,7 @@ _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 - [x] **E11** — Add `POST /api/v1/stock/movements` (`receive`, `issue`, `adjust`) with validation and `Idempotency-Key` support. _Done when:_ endpoint tests cover each type and error codes.
 - [x] **E12** — Add `GET /api/v1/stock/movements` with filters (product, type, actor, from, to) and cursor pagination. _Done when:_ pagination and filters are tested.
 - [x] **E13** — Add `POST /api/v1/stock/movements/:id/void`, allowed for ADMIN or the original actor within the undo window (configurable, default 5 minutes). _Done when:_ permission cases are tested.
-- [ ] **E14** — Run reconciliation as a scheduled hosted service that logs drift. _Done when:_ the job runs on a configurable interval; tested with a short interval.
+- [x] **E14** — Run reconciliation as a scheduled hosted service that logs drift. _Done when:_ the job runs on a configurable interval; tested with a short interval.
 
 ## F. Products API
 

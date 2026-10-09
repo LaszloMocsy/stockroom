@@ -499,7 +499,7 @@ Documented guides: VPS + Caddy (automatic HTTPS), home server, and Railway.
 
 ### 12.2 Configuration
 
-Environment variables with sane defaults, prefixed `STOCKROOM_`: database URL, public URL, allowed CORS origins, storage provider and S3 settings, SMTP, log level, undo window. Runtime-changeable preferences live in the database settings table (P1 admin UI). The web image reads its API base URL at container start, so one image works for every deployment.
+Environment variables with sane defaults, prefixed `STOCKROOM_`: database URL, public URL, allowed CORS origins, storage provider and S3 settings, SMTP, log level, undo window, reconciliation interval. Runtime-changeable preferences live in the database settings table (P1 admin UI). The web image reads its API base URL at container start, so one image works for every deployment.
 
 ### 12.3 Backup and upgrade
 
@@ -613,6 +613,7 @@ Versions of this document. Newest first.
 ### v0.7 — 2026-10-09
 
 - **Voids:** STAFF can void their own movements within the undo window, which defaults to 5 minutes and is set by an environment variable; ADMIN can void any movement at any time (sections 2.1, 12.2).
+- **Reconciliation:** the check runs at startup and then on an interval set by an environment variable, hourly by default, and logs a warning per drifted level (sections 3.2, 12.2).
 
 ### v0.6 — 2026-10-08
 

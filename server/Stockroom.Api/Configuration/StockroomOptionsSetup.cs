@@ -88,6 +88,20 @@ internal sealed class StockroomOptionsSetup(IConfiguration configuration)
                 errors.Add($"{StockroomOptions.UndoWindowSecondsKey} must be a whole number of seconds, 0 or more, got '{undoWindow}'.");
             }
         }
+
+        var reconciliationInterval = Read(StockroomOptions.ReconciliationIntervalSecondsKey);
+        if (reconciliationInterval is not null)
+        {
+            if (int.TryParse(reconciliationInterval, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds)
+                && seconds <= StockroomOptions.MaxReconciliationIntervalSeconds)
+            {
+                options.ReconciliationInterval = TimeSpan.FromSeconds(seconds);
+            }
+            else
+            {
+                errors.Add($"{StockroomOptions.ReconciliationIntervalSecondsKey} must be a whole number of seconds from 0 (off) to {StockroomOptions.MaxReconciliationIntervalSeconds} (30 days), got '{reconciliationInterval}'.");
+            }
+        }
     }
 
     private string? Read(string key)

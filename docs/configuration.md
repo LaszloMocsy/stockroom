@@ -12,13 +12,14 @@ Runtime-changeable preferences (such as the negative-stock policy) live in the d
 
 ## Settings
 
-| Variable                         | Required | Default       | Description                                                                                                                  |
-| -------------------------------- | :------: | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `STOCKROOM_DATABASE_URL`         |   yes    | —             | PostgreSQL connection string, for example `Host=db;Database=stockroom;Username=stockroom;Password=secret`.                   |
-| `STOCKROOM_PUBLIC_URL`           |   yes    | —             | Absolute `http` or `https` URL that clients use to reach this server, for example `https://stock.example.com`.               |
-| `STOCKROOM_ALLOWED_CORS_ORIGINS` |    no    | empty         | Comma-separated origins allowed to call the API from a browser, for example `https://app.example.com,http://localhost:5173`. |
-| `STOCKROOM_LOG_LEVEL`            |    no    | `Information` | Default minimum log level: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`, or `None` (case-insensitive).    |
-| `STOCKROOM_UNDO_WINDOW_SECONDS`  |    no    | `300`         | How many seconds after recording a stock movement its user may undo (void) it. `0` leaves voiding to ADMIN users.            |
+| Variable                                    | Required | Default       | Description                                                                                                                         |
+| ------------------------------------------- | :------: | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `STOCKROOM_DATABASE_URL`                    |   yes    | —             | PostgreSQL connection string, for example `Host=db;Database=stockroom;Username=stockroom;Password=secret`.                          |
+| `STOCKROOM_PUBLIC_URL`                      |   yes    | —             | Absolute `http` or `https` URL that clients use to reach this server, for example `https://stock.example.com`.                      |
+| `STOCKROOM_ALLOWED_CORS_ORIGINS`            |    no    | empty         | Comma-separated origins allowed to call the API from a browser, for example `https://app.example.com,http://localhost:5173`.        |
+| `STOCKROOM_LOG_LEVEL`                       |    no    | `Information` | Default minimum log level: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`, or `None` (case-insensitive).           |
+| `STOCKROOM_RECONCILIATION_INTERVAL_SECONDS` |    no    | `3600`        | How often, in seconds, stock levels are checked against the movement history. `0` turns the check off; at most `2592000` (30 days). |
+| `STOCKROOM_UNDO_WINDOW_SECONDS`             |    no    | `300`         | How many seconds after recording a stock movement its user may undo (void) it. `0` leaves voiding to ADMIN users.                   |
 
 ### Notes
 
@@ -26,6 +27,7 @@ Runtime-changeable preferences (such as the negative-stock policy) live in the d
 - **Log level** sets the default only. Noisy framework categories such as `Microsoft.AspNetCore` stay at `Warning`.
 - **Health probes** (`/healthz`, `/readyz`) that succeed are logged at `Debug`, so they only appear with `STOCKROOM_LOG_LEVEL=Debug` or `Trace`. Failing probes are logged like any other request.
 - **Undo window** applies to STAFF voiding their own movements. ADMIN users can void any movement at any time, and a retried void with the same `Idempotency-Key` succeeds after the window has closed.
+- **Reconciliation** runs once at startup and then every interval. Each stock level that disagrees with the sum of its movements is logged as a warning naming the product's public ID; nothing is changed automatically. A run that fails, for example while the database is unreachable, is logged as an error and retried at the next interval.
 - Treat the database URL as a secret: it contains the password. Never commit it.
 
 ## Local development
