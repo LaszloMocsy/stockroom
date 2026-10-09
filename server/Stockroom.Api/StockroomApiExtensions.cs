@@ -15,6 +15,7 @@ using Stockroom.Core.Users;
 using Stockroom.Data;
 using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
+using Stockroom.Data.Stock;
 using Stockroom.Data.Users;
 
 namespace Stockroom.Api;
@@ -34,6 +35,7 @@ internal static class StockroomApiExtensions
             options.UseStockroomDatabase(services.GetRequiredService<IOptions<StockroomOptions>>().Value.DatabaseUrl));
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
+        builder.Services.AddScoped<StockService>();
         builder.Services.AddIdentityCore<User>(options =>
             {
                 // Length rather than composition rules, which push people towards predictable passwords
