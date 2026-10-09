@@ -110,7 +110,7 @@ _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 - [x] **E5** — Record an `initial` movement through the service when a product is created with a starting quantity. _Done when:_ tested via the service API.
 - [x] **E6** — Add `Void` creating a linked reversing movement; a movement can only be voided once. _Done when:_ tests cover success, double void, and voiding that would make stock negative.
 - [x] **E7** — Add idempotency: a repeated key from the same actor returns the original result and writes nothing. _Done when:_ tested, including concurrent duplicates.
-- [ ] **E8** — Add a concurrency test: many parallel `Issue` calls never oversell. _Done when:_ test is deterministic and passes repeatedly.
+- [x] **E8** — Add a concurrency test: many parallel `Issue` calls never oversell. _Done when:_ test is deterministic and passes repeatedly.
 - [ ] **E9** — Add reconciliation: `SUM(delta)` per product/location versus the cached level, reporting drift. _Done when:_ a test that corrupts a level makes it report drift.
 - [ ] **E10** — Add a property-based test: random operation sequences keep levels equal to the ledger sum. _Done when:_ test runs in CI within a reasonable time.
 - [ ] **E11** — Add `POST /api/v1/stock/movements` (`receive`, `issue`, `adjust`) with validation and `Idempotency-Key` support. _Done when:_ endpoint tests cover each type and error codes.
