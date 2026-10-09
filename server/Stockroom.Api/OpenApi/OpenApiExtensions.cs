@@ -16,6 +16,10 @@ internal static class OpenApiExtensions
             document.Info.Title = "Stockroom API";
             document.Info.Version = DocumentName;
             document.Info.Description = "Self-hosted inventory and stock tracking.";
+
+            // Every deployment has its own URL, and the default entry echoes the request's host, so the
+            // committed snapshot would depend on who generated it. Clients configure the server URL themselves.
+            document.Servers?.Clear();
             return Task.CompletedTask;
         }));
 

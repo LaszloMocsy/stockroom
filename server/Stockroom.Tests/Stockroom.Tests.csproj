@@ -22,4 +22,12 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+
+  <!-- The committed OpenAPI document, which OpenApiSnapshotTests compares with the served one and rewrites on request. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>OpenApiSnapshotPath</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../openapi/openapi.v1.json'))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

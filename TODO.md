@@ -147,7 +147,7 @@ _Spec: 14._
 
 _Spec: 9.1, 10.1, D8._
 
-- [ ] **H1** — Write the OpenAPI document to `server/openapi/openapi.v1.json` and add a test that fails if the committed file is stale. _Done when:_ the test fails after an unregistered API change.
+- [x] **H1** — Write the OpenAPI document to `server/openapi/openapi.v1.json` and add a test that fails if the committed file is stale. _Done when:_ the test fails after an unregistered API change.
 - [ ] **H2** — Create `packages/api-client` with type generation (openapi-typescript) from the committed snapshot at build time, and a typed fetch wrapper. Generated files are git-ignored. _Done when:_ `pnpm --filter api-client build` produces types from the snapshot and `git status` stays clean afterwards.
 - [ ] **H3** — Add middleware to the client for the base URL, bearer token injection, and `X-Client-Version` / `X-Client-Platform` headers. _Done when:_ unit tested with a mock fetch.
 - [ ] **H4** — Add automatic token refresh with a single in-flight refresh and a retry of the original request. _Done when:_ concurrent 401s trigger one refresh; unit tested.

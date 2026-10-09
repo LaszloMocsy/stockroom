@@ -11,6 +11,7 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 - [Seed development data](#seed-development-data)
 - [Run the tests](#run-the-tests)
 - [Change the database schema](#change-the-database-schema)
+- [Change the API](#change-the-api)
 - [Before you commit](#before-you-commit)
 - [Troubleshooting](#troubleshooting)
 
@@ -141,6 +142,17 @@ dotnet ef migrations add <Name> --project Stockroom.Data
 ```
 
 Adding a migration does not need a database. Commit the generated files, including the updated model snapshot, together with the change. Migrations are forward-only once released: a server refuses to start against a database migrated by a newer version.
+
+## Change the API
+
+The API contract is committed as [`server/openapi/openapi.v1.json`](../server/openapi/openapi.v1.json), and the TypeScript client is generated from it. `OpenApiSnapshotTests` fails whenever the document the API serves differs from that file, so every change to an endpoint, request, or response has to update it. After an intended change, regenerate it:
+
+```sh
+cd server
+UPDATE_OPENAPI_SNAPSHOT=1 dotnet test --project Stockroom.Tests -- --filter-class '*OpenApiSnapshotTests'
+```
+
+Review the diff and commit the snapshot together with the change. Within `/api/v1`, changes must be additive: new endpoints and fields are fine, but removing or changing existing ones needs `/api/v2` (see the [specification](../SPECIFICATION.md#101-version-compatibility)).
 
 ## Before you commit
 
