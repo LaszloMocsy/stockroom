@@ -435,6 +435,103 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task AProductCreatedWithAStartingQuantityGetsAnInitialMovement()
+    {
+        var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
+        await TestDatabase.AddAsync(databaseUrl, Actor);
+        var product = TestProducts.New("SR-000001");
+
+        StockMovement movement;
+        await using (var db = TestDatabase.CreateContext(databaseUrl))
+        await using (var transaction = await db.Database.BeginTransactionAsync(Token))
+        {
+            db.Products.Add(product);
+            await db.SaveChangesAsync(Token);
+            movement = await Service(db).RecordInitialAsync(new InitialStock(product.Id, 8, Actor.Id), Token);
+            await transaction.CommitAsync(Token);
+        }
+
+        Assert.Equal(8, await QuantityAsync(databaseUrl, product));
+        await using var check = TestDatabase.CreateContext(databaseUrl);
+        var stored = await check.StockMovements.SingleAsync(Token);
+        Assert.Equivalent(movement, stored, strict: true);
+        Assert.Equivalent(
+            new
+            {
+                ProductId = product.Id,
+                LocationId = Location.MainStorageId,
+                Type = StockMovementType.Initial,
+                Delta = 8,
+                QuantityAfter = 8,
+                Reason = StockMovementReason.Count,
+                ActorId = Actor.Id,
+                CreatedAt = Now,
+            },
+            stored);
+    }
+
+    [Fact]
+    public async Task AnInitialMovementIsUndoneWithTheProductCreation()
+    {
+        var databaseUrl = await TestDatabase.CreateMigratedAsync(postgres, Token);
+        await TestDatabase.AddAsync(databaseUrl, Actor);
+        var product = TestProducts.New("SR-000001");
+
+        await using (var db = TestDatabase.CreateContext(databaseUrl))
+        await using (var transaction = await db.Database.BeginTransactionAsync(Token))
+        {
+            db.Products.Add(product);
+            await db.SaveChangesAsync(Token);
+            await Service(db).RecordInitialAsync(new InitialStock(product.Id, 8, Actor.Id), Token);
+            await transaction.RollbackAsync(Token);
+        }
+
+        await AssertNothingWrittenAsync(databaseUrl);
+        await using var check = TestDatabase.CreateContext(databaseUrl);
+        Assert.False(await check.Products.AnyAsync(Token));
+    }
+
+    [Fact]
+    public async Task AProductWithStockHistoryCannotGetAnInitialMovement()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+        await IssueAsync(databaseUrl, new IssueStock(product.Id, 3, Actor.Id));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RecordInitialAsync(databaseUrl, new InitialStock(product.Id, 5, Actor.Id)));
+
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(2, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task AProductGetsOnlyOneInitialMovement()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await RecordInitialAsync(databaseUrl, new InitialStock(product.Id, 8, Actor.Id));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RecordInitialAsync(databaseUrl, new InitialStock(product.Id, 8, Actor.Id)));
+
+        Assert.Equal(8, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-4)]
+    public async Task AnInitialQuantityThatIsNotPositiveIsRejected(int quantity)
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => RecordInitialAsync(databaseUrl, new InitialStock(product.Id, quantity, Actor.Id)));
+
+        await AssertNothingWrittenAsync(databaseUrl);
+    }
+
+    [Fact]
     public async Task TheApiProvidesTheService()
     {
         await using var factory = await StockroomApiFactory.CreateAsync(postgres);
@@ -453,6 +550,12 @@ public sealed class StockServiceTests(PostgresFixture postgres)
 
     private static StockService Service(StockroomDbContext db) =>
         new(db, new SettingsStore(db), TestDatabase.Ids, new FakeTimeProvider(Now));
+
+    private static async Task<StockMovement> RecordInitialAsync(string databaseUrl, InitialStock request)
+    {
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        return await Service(db).RecordInitialAsync(request, Token);
+    }
 
     private static async Task<StockMovement> ReceiveAsync(string databaseUrl, ReceiveStock request)
     {

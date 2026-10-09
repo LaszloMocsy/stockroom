@@ -18,6 +18,31 @@ namespace Stockroom.Data.Stock;
 /// </remarks>
 public sealed class StockService(StockroomDbContext db, ISettingsStore settings, IIdGenerator ids, TimeProvider time)
 {
+    /// <summary>
+    /// Records the quantity a new product starts with and returns the <c>initial</c> movement. Call it in the
+    /// transaction that creates the product, so the product never exists without its starting stock.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
+    /// <exception cref="InvalidOperationException">The product already has stock history; nothing is written.</exception>
+    public Task<StockMovement> RecordInitialAsync(InitialStock request, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(request.Quantity);
+
+        return InTransactionAsync(async () =>
+        {
+            // Only movements create level rows, so an existing row means the product already has history.
+            // Inserting rather than checking first keeps two concurrent calls from both succeeding.
+            if (!await CreateLevelAsync(request.ProductId, Location.MainStorageId, request.Quantity, cancellationToken))
+            {
+                throw new InvalidOperationException("Only a product without stock history can be given an initial quantity.");
+            }
+
+            return await AppendAsync(
+                request.ProductId, StockMovementType.Initial, request.Quantity, request.Quantity,
+                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+        }, cancellationToken);
+    }
+
     /// <summary>Adds <see cref="ReceiveStock.Quantity"/> units and returns the <c>receive</c> movement.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
     public Task<StockMovement> ReceiveAsync(ReceiveStock request, CancellationToken cancellationToken)
@@ -125,6 +150,18 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
                 """)
             .ToListAsync(cancellationToken))
             .SingleOrDefault();
+
+    /// <summary>
+    /// Creates the level row with <paramref name="quantity"/>. Returns <see langword="false"/>, changing
+    /// nothing, if the row already exists.
+    /// </summary>
+    private async Task<bool> CreateLevelAsync(Guid productId, Guid locationId, int quantity, CancellationToken cancellationToken) =>
+        await db.Database.ExecuteSqlAsync(
+            $"""
+            INSERT INTO stock_levels (product_id, location_id, quantity) VALUES ({productId}, {locationId}, {quantity})
+            ON CONFLICT (product_id, location_id) DO NOTHING
+            """,
+            cancellationToken) == 1;
 
     /// <summary>
     /// Adds <paramref name="delta"/> to the level, creating the row on the first movement, and returns the
