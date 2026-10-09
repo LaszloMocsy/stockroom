@@ -44,6 +44,7 @@ try
     v1.MapUserEndpoints();
     v1.MapProductEndpoints();
     v1.MapStockMovementEndpoints();
+    v1.MapStatsEndpoints();
 
     await app.RunAsync();
     return 0;
