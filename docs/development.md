@@ -17,12 +17,12 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 
 ## Prerequisites
 
-| Tool                                     | Version                               | Used for                                                  |
-| ---------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
-| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                    |
-| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests        |
-| Node                                     | 24.19.x                               | Repository tooling (formatting); the apps, once they land |
-| pnpm                                     | 12.9.1, via Corepack                  | The same                                                  |
+| Tool                                     | Version                               | Used for                                                                  |
+| ---------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
+| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                                    |
+| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests                        |
+| Node                                     | 24.19.x                               | Repository tooling (formatting), the API client; the apps, once they land |
+| pnpm                                     | 12.9.1, via Corepack                  | The same                                                                  |
 
 The exact versions are pinned in the repository; see [Tool versions](../CONTRIBUTING.md#tool-versions). Commands below run from the repository root unless they start with `cd`.
 
@@ -31,7 +31,7 @@ The exact versions are pinned in the repository; see [Tool versions](../CONTRIBU
 ```sh
 nvm use                             # or any version manager that reads .nvmrc
 corepack enable                     # installs the pnpm version from package.json
-pnpm install                        # repository tooling (Prettier)
+pnpm install                        # repository tooling (Prettier) and the API client
 dotnet --version                    # should print the SDK pinned in global.json
 (cd server && dotnet tool restore)  # dotnet-ef, for migrations
 (cd server && dotnet build)
@@ -152,7 +152,13 @@ cd server
 UPDATE_OPENAPI_SNAPSHOT=1 dotnet test --project Stockroom.Tests -- --filter-class '*OpenApiSnapshotTests'
 ```
 
-Review the diff and commit the snapshot together with the change. Within `/api/v1`, changes must be additive: new endpoints and fields are fine, but removing or changing existing ones needs `/api/v2` (see the [specification](../SPECIFICATION.md#101-version-compatibility)).
+Review the diff and commit the snapshot together with the change. Then rebuild the TypeScript client, [`packages/api-client`](../packages/api-client), which generates its types from the snapshot at build time; the generated files are not committed:
+
+```sh
+pnpm --filter api-client build
+```
+
+Within `/api/v1`, changes must be additive: new endpoints and fields are fine, but removing or changing existing ones needs `/api/v2` (see the [specification](../SPECIFICATION.md#101-version-compatibility)).
 
 ## Before you commit
 

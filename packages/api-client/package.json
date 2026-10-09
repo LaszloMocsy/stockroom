@@ -1,0 +1,29 @@
+{
+  "name": "@stockroom/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed client for the Stockroom API, generated from the committed OpenAPI document",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript ../../server/openapi/openapi.v1.json --output src/generated/schema.ts",
+    "build": "pnpm run generate && tsc",
+    "typecheck": "pnpm run generate && tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3"
+  }
+}

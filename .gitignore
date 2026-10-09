@@ -26,6 +26,9 @@ TestResults/
 publish/
 appsettings.Development.local.json
 
+# API client types, generated from server/openapi at build time
+packages/api-client/src/generated/
+
 # Node / pnpm
 node_modules/
 .pnpm-store/
