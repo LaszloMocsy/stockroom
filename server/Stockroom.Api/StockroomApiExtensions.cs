@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -52,9 +53,15 @@ internal static class StockroomApiExtensions
             .AddUserStore<StockroomUserStore>()
             .AddRoleStore<RoleStore<IdentityRole<Guid>, StockroomDbContext, Guid>>();
 
-        // JSON field names are snake_case throughout the API (spec 10).
+        // JSON field names are snake_case throughout the API (spec 10), and so are enum values, which are
+        // written as strings (e.g. "receive"), matching the names stored in the database. Numbers must be
+        // JSON numbers: the web defaults would also accept "5" as a string.
         builder.Services.ConfigureHttpJsonOptions(options =>
-            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+        {
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
+        });
 
         builder.Services.AddStockroomCors();
         builder.Services.AddStockroomAuth();

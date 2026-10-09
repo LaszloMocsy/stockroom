@@ -29,6 +29,29 @@ public sealed class OpenApiTests(StockroomApiFactory factory, PostgresFixture po
     }
 
     [Fact]
+    public async Task StockMovementsAreDescribedWithStringEnumsAndIntegerQuantities()
+    {
+        using var client = factory.CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/api/v1/openapi.json", UriKind.Relative), Token));
+        var root = document.RootElement;
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        var post = root.GetProperty("paths").GetProperty("/api/v1/stock/movements").GetProperty("post");
+
+        Assert.Equal("CreateStockMovement", post.GetProperty("operationId").GetString());
+        Assert.Equal(["201", "204", "400", "401", "404", "409"], post.GetProperty("responses").EnumerateObject().Select(r => r.Name));
+        Assert.Equal(
+            ["receive", "issue", "adjust", "initial", "void"],
+            schemas.GetProperty("StockMovementType").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+        Assert.Contains("count", schemas.GetProperty("StockMovementReason").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+
+        // Whole JSON numbers only (spec 3.2, rule 7): no numeric strings.
+        var quantity = schemas.GetProperty("CreateStockMovementRequest").GetProperty("properties").GetProperty("quantity");
+        Assert.Equal(["null", "integer"], quantity.GetProperty("type").EnumerateArray().Select(t => t.GetString()));
+        Assert.Equal(1, quantity.GetProperty("minimum").GetInt32());
+    }
+
+    [Fact]
     public async Task DocumentationEndpointsAreNotPartOfTheDocument()
     {
         using var client = factory.CreateClient();
