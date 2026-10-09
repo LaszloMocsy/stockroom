@@ -68,6 +68,14 @@ internal static class ProductEndpoints
                 A `sku` that another product has returns 409 with `{SkuTaken}`, and a `barcode` that another product has returns 409 with `{BarcodeTaken}`; `details.product_id` is that product's ID.
                 """));
 
+        products.MapGet("/lookup", LookUpProductAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("LookUpProduct")
+            .WithSummary("Find a product by barcode or SKU")
+            .WithDescription("Returns the product with exactly this `barcode` or `sku`; pass one of them, not both. Matching is exact, including case. Archived products are returned too, with `archived_at` set, so a scan of one is not mistaken for an unknown barcode. No match returns 404.");
+
         products.MapGet("/{id:guid}", GetProductAsync)
             .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
             .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
@@ -208,6 +216,30 @@ internal static class ProductEndpoints
             : null;
 
         return TypedResults.Ok(new ListResponse<ProductResponse>(items.Take(pageSize).ToList(), nextCursor));
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> LookUpProductAsync(
+        [Description("A scanned barcode, exactly as read.")] string? barcode,
+        [Description("A SKU.")] string? sku,
+        StockroomDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if ((barcode is null) == (sku is null))
+        {
+            string[] message = [barcode is null ? "Pass either barcode or sku." : "Pass only one of barcode and sku."];
+            return ApiResults.ValidationFailed(new Dictionary<string, string[]> { [nameof(barcode)] = message, [nameof(sku)] = message });
+        }
+
+        var matches = barcode is not null
+            ? db.Products.Where(p => p.Barcodes.Any(b => b.Barcode == barcode))
+            : db.Products.Where(p => p.Sku == sku);
+        var product = await ProductResponse.Project(matches, db).SingleOrDefaultAsync(cancellationToken);
+        return product is null
+            ? ApiResults.Error(
+                StatusCodes.Status404NotFound,
+                ErrorCodes.NotFound,
+                barcode is not null ? "No product has this barcode." : "No product has this SKU.")
+            : TypedResults.Ok(product);
     }
 
     private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> GetProductAsync(
