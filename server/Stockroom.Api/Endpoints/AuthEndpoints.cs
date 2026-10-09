@@ -30,7 +30,7 @@ internal static class AuthEndpoints
             .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
             .WithName("Login")
             .WithSummary("Log in with username and password")
-            .WithDescription($"Returns a short-lived access token for the `Authorization: Bearer` header and a refresh token for this device. Wrong credentials return 401 with `{InvalidCredentials}`, whether or not the username exists. After {LoginLockout.FreeAttempts} wrong passwords in a row the account is locked, for longer after each further failure, and login returns 429 with `{AccountLockedOut}` and `Retry-After` until the lockout ends.");
+            .WithDescription($"Returns a short-lived access token for the `Authorization: Bearer` header and a refresh token for this device. Wrong credentials return 401 with `{InvalidCredentials}`, whether or not the username exists. {LoginLockout.FreeAttempts} wrong passwords in a row are allowed; the next one locks the account, for longer after each further failure, and login returns 429 with `{AccountLockedOut}` and `Retry-After` until the lockout ends.");
 
         auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()

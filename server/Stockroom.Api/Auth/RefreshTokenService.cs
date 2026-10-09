@@ -170,7 +170,7 @@ internal sealed partial class RefreshTokenService(StockroomDbContext db, IIdGene
     /// inserting its next token would miss that token.
     /// </summary>
     internal Task LockSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
-        db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({sessionId}::text, 0))", cancellationToken);
+        db.Database.AcquireTransactionLockAsync(sessionId, cancellationToken);
 
     // Call only inside a transaction that holds the session's lock (see LockSessionAsync).
     private Task RevokeLockedSessionAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>

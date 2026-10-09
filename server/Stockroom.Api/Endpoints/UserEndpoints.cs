@@ -14,10 +14,6 @@ internal static class UserEndpoints
 {
     public const string LastAdmin = "last_admin";
 
-    // Serialises demotions, so two requests cannot each demote one of the last two ADMINs.
-    // Any constant works as long as nothing else uses it; this one is "AdminLck" in ASCII.
-    private const long DemotionLockKey = 0x41646d696e4c636b;
-
     public static IEndpointRouteBuilder MapUserEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var users = endpoints.MapGroup("/users").WithTags("Users").RequireAdmin();
@@ -70,6 +66,10 @@ internal static class UserEndpoints
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
+        // Identity checks that the username is free before inserting; without the lock, two requests for
+        // one username could both pass the check and the second would fail on the unique index (a 500).
+        await db.Database.AcquireTransactionLockAsync(AdvisoryLocks.UserCreation, cancellationToken);
+
         var (user, error) = await UserAccounts.CreateAsync(users, request.Username, request.DisplayName, request.Password, request.Role);
         if (error is not null)
         {
@@ -100,7 +100,7 @@ internal static class UserEndpoints
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         if (request.Role == Roles.Staff)
         {
-            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({DemotionLockKey})", cancellationToken);
+            await db.Database.AcquireTransactionLockAsync(AdvisoryLocks.AdminDemotion, cancellationToken);
         }
 
         // Locks the row, so concurrent changes to one user apply in turn instead of failing Identity's

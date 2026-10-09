@@ -17,10 +17,6 @@ internal static class SetupEndpoints
 {
     public const string SetupAlreadyCompleted = "setup_already_completed";
 
-    // Serialises concurrent setup requests, so two of them cannot both see an empty users table.
-    // Any constant works as long as nothing else uses it; this one is "Stockroo" in ASCII.
-    private const long SetupLockKey = 0x53746f636b726f6f;
-
     public static IEndpointRouteBuilder MapSetupEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/setup", SetupAsync)
@@ -43,7 +39,7 @@ internal static class SetupEndpoints
         CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({SetupLockKey})", cancellationToken);
+        await db.Database.AcquireTransactionLockAsync(AdvisoryLocks.UserCreation, cancellationToken);
 
         if (await db.Users.AnyAsync(cancellationToken))
         {

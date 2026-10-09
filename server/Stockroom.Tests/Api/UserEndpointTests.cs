@@ -88,6 +88,32 @@ public sealed class UserEndpointTests(StockroomApiFactory factory) : IClassFixtu
         Assert.Equal(["username"], await ValidationFieldsAsync(response));
     }
 
+    [Fact]
+    public async Task ConcurrentCreatesOfOneUsernameCreateExactlyOneUser()
+    {
+        using var admin = await CreateClientAsAsync(factory, Roles.Admin);
+        var username = NewUsername();
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(i => admin.PostAsJsonAsync(
+            UsersUri, new { username, display_name = $"User {i}", password = Password }, Token)));
+        var rejected = responses.Where(r => r.StatusCode != HttpStatusCode.Created).ToList();
+        var created = responses.Length - rejected.Count;
+        var rejectedFields = new List<List<string>>();
+        foreach (var response in rejected)
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            rejectedFields.Add(await ValidationFieldsAsync(response));
+        }
+
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
+
+        Assert.Equal(1, created);
+        Assert.All(rejectedFields, fields => Assert.Equal(["username"], fields));
+    }
+
     [Theory]
     [InlineData("short", "STAFF", "password")]
     [InlineData(Password, "OWNER", "role")]
