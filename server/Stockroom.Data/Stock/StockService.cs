@@ -122,6 +122,52 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Reverses a movement with a linked <c>void</c> movement whose delta is the opposite of the original's,
+    /// and returns it. The original stays in the ledger unchanged (spec 3.2, rule 2).
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No movement has the ID.</exception>
+    /// <exception cref="MovementNotVoidableException">
+    /// The movement was already voided, or is itself a void; nothing is written.
+    /// </exception>
+    /// <exception cref="InsufficientStockException">
+    /// Reversing would take the quantity below zero and <see cref="StockroomSettings.AllowNegativeStock"/> is
+    /// off; nothing is written.
+    /// </exception>
+    public Task<StockMovement> VoidAsync(VoidStock request, CancellationToken cancellationToken) =>
+        InTransactionAsync(async () =>
+        {
+            var original = await db.StockMovements
+                .AsNoTracking()
+                .Where(m => m.Id == request.MovementId)
+                .Select(m => new { m.ProductId, m.LocationId, m.Type, m.Delta })
+                .SingleOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException($"No stock movement has the ID {request.MovementId}.");
+            if (original.Type == StockMovementType.Void)
+            {
+                throw new MovementNotVoidableException(MovementNotVoidableReason.IsVoid);
+            }
+
+            // Every void of this movement takes the same lock, so only one of them can find it not yet voided.
+            var current = await LockLevelAsync(original.ProductId, original.LocationId, cancellationToken);
+            if (await db.StockMovements.AnyAsync(m => m.VoidsMovementId == request.MovementId, cancellationToken))
+            {
+                throw new MovementNotVoidableException(MovementNotVoidableReason.AlreadyVoided);
+            }
+
+            var delta = -original.Delta;
+            if (current + delta < 0 && delta < 0
+                && !await settings.GetAsync(StockroomSettings.AllowNegativeStock, cancellationToken))
+            {
+                throw new InsufficientStockException(-delta, current);
+            }
+
+            var quantityAfter = await AddToLevelAsync(original.ProductId, original.LocationId, delta, cancellationToken);
+            return await AppendAsync(
+                original.ProductId, original.LocationId, StockMovementType.Void, delta, quantityAfter,
+                request.Reason, request.Note, reference: null, request.MovementId, request.ActorId, cancellationToken);
+        }, cancellationToken);
+
     /// <summary>Runs <paramref name="operation"/> in the caller's transaction, or in a new one it commits on success.</summary>
     private async Task<T> InTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
     {
@@ -180,7 +226,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             .ToListAsync(cancellationToken))
             .Single();
 
-    private async Task<StockMovement> AppendAsync(
+    private Task<StockMovement> AppendAsync(
         Guid productId,
         StockMovementType type,
         int delta,
@@ -189,6 +235,22 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         string? note,
         string? reference,
         Guid actorId,
+        CancellationToken cancellationToken) =>
+        AppendAsync(
+            productId, Location.MainStorageId, type, delta, quantityAfter,
+            reason, note, reference, voidsMovementId: null, actorId, cancellationToken);
+
+    private async Task<StockMovement> AppendAsync(
+        Guid productId,
+        Guid locationId,
+        StockMovementType type,
+        int delta,
+        int quantityAfter,
+        StockMovementReason reason,
+        string? note,
+        string? reference,
+        Guid? voidsMovementId,
+        Guid actorId,
         CancellationToken cancellationToken)
     {
         var movement = new StockMovement
@@ -196,13 +258,14 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             Id = ids.NewInternalId(),
             PublicId = ids.NewPublicId(),
             ProductId = productId,
-            LocationId = Location.MainStorageId,
+            LocationId = locationId,
             Type = type,
             Delta = delta,
             QuantityAfter = quantityAfter,
             Reason = reason,
             Note = note,
             Reference = reference,
+            VoidsMovementId = voidsMovementId,
             ActorId = actorId,
             CreatedAt = time.GetUtcNow(),
         };

@@ -123,6 +123,19 @@ public sealed class StockMovementPersistenceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task AMovementIsVoidedAtMostOnce()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = Movement(product);
+        await TestDatabase.AddAsync(databaseUrl, received, Movement(product, StockMovementType.Void, voidsMovementId: received.Id));
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(
+            () => TestDatabase.AddAsync(databaseUrl, Movement(product, StockMovementType.Void, voidsMovementId: received.Id)));
+
+        TestDatabase.AssertConstraintViolation(ex, PostgresErrorCodes.UniqueViolation, "ix_stock_movements_voids_movement_id");
+    }
+
+    [Fact]
     public async Task TheActorMustBeAnExistingUser()
     {
         var (databaseUrl, product) = await CreateDatabaseWithProductAsync();

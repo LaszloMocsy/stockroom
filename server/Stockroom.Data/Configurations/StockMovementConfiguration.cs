@@ -27,6 +27,10 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.HasOne<StockMovement>().WithMany().HasForeignKey(m => m.VoidsMovementId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<User>().WithMany().HasForeignKey(m => m.ActorId).OnDelete(DeleteBehavior.Restrict);
 
+        // A movement is voided at most once (spec 3.2, rule 2). StockService checks first, under the level's
+        // row lock; this is the backstop. Movements that void nothing are NULL here, which never conflicts.
+        builder.HasIndex(m => m.VoidsMovementId).IsUnique();
+
         // A product's history, newest or oldest first.
         builder.HasIndex(m => new { m.ProductId, m.CreatedAt });
 

@@ -532,6 +532,148 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task VoidingAReceiveReversesIt()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+        var undoer = TestUsers.New("undoer");
+        await TestDatabase.AddAsync(databaseUrl, undoer);
+
+        var movement = await VoidAsync(databaseUrl, new VoidStock(received.Id, undoer.Id) { Note = "Entered twice" });
+
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        var stored = await db.StockMovements.SingleAsync(m => m.PublicId == movement.PublicId, Token);
+        Assert.Equivalent(movement, stored, strict: true);
+        Assert.Equivalent(
+            new
+            {
+                ProductId = product.Id,
+                LocationId = Location.MainStorageId,
+                Type = StockMovementType.Void,
+                Delta = -10,
+                QuantityAfter = 0,
+                Reason = StockMovementReason.Correction,
+                Note = "Entered twice",
+                Reference = (string?)null,
+                VoidsMovementId = (Guid?)received.Id,
+                ActorId = undoer.Id,
+                CreatedAt = Now,
+            },
+            stored);
+        Assert.Equivalent(received, await db.StockMovements.SingleAsync(m => m.Id == received.Id, Token), strict: true);
+    }
+
+    [Fact]
+    public async Task VoidingAnIssueReturnsTheStock()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+        var issued = await IssueAsync(databaseUrl, new IssueStock(product.Id, 3, Actor.Id));
+
+        var movement = await VoidAsync(databaseUrl, new VoidStock(issued.Id, Actor.Id));
+
+        Assert.Equal((3, 10), (movement.Delta, movement.QuantityAfter));
+        Assert.Equal(10, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AMovementCanBeVoidedOnlyOnce()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+        await VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<MovementNotVoidableException>(
+            () => VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id)));
+
+        Assert.Equal(MovementNotVoidableReason.AlreadyVoided, ex.Reason);
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(2, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task ConcurrentVoidsOfOneMovementVoidItOnce()
+    {
+        const int Attempts = 10;
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 4, Actor.Id));
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+
+        var outcomes = await Task.WhenAll(Enumerable.Range(0, Attempts).Select(_ => Task.Run(async () =>
+        {
+            try
+            {
+                await VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id));
+                return "voided";
+            }
+            catch (MovementNotVoidableException ex) when (ex.Reason == MovementNotVoidableReason.AlreadyVoided)
+            {
+                return "already voided";
+            }
+        }, Token)));
+
+        Assert.Single(outcomes, o => o == "voided");
+        Assert.Equal(4, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AVoidCannotBeVoided()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+        var voided = await VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<MovementNotVoidableException>(
+            () => VoidAsync(databaseUrl, new VoidStock(voided.Id, Actor.Id)));
+
+        Assert.Equal(MovementNotVoidableReason.IsVoid, ex.Reason);
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AVoidThatWouldMakeStockNegativeIsRejected()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id));
+        await IssueAsync(databaseUrl, new IssueStock(product.Id, 4, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<InsufficientStockException>(
+            () => VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id)));
+
+        Assert.Equal((5, 1), (ex.Requested, ex.Available));
+        Assert.Equal(1, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(2, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task AVoidMayMakeStockNegativeWhenNegativeStockIsAllowed()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id));
+        await IssueAsync(databaseUrl, new IssueStock(product.Id, 4, Actor.Id));
+        await SetAllowNegativeStockAsync(databaseUrl, true);
+
+        var movement = await VoidAsync(databaseUrl, new VoidStock(received.Id, Actor.Id));
+
+        Assert.Equal((-5, -4), (movement.Delta, movement.QuantityAfter));
+        Assert.Equal(-4, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task VoidingAnUnknownMovementFails()
+    {
+        var (databaseUrl, _) = await CreateDatabaseWithProductAsync();
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => VoidAsync(databaseUrl, new VoidStock(TestDatabase.Ids.NewInternalId(), Actor.Id)));
+
+        await AssertNothingWrittenAsync(databaseUrl);
+    }
+
+    [Fact]
     public async Task TheApiProvidesTheService()
     {
         await using var factory = await StockroomApiFactory.CreateAsync(postgres);
@@ -573,6 +715,12 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     {
         await using var db = TestDatabase.CreateContext(databaseUrl);
         return await Service(db).AdjustAsync(request, Token);
+    }
+
+    private static async Task<StockMovement> VoidAsync(string databaseUrl, VoidStock request)
+    {
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        return await Service(db).VoidAsync(request, Token);
     }
 
     private static async Task SetAllowNegativeStockAsync(string databaseUrl, bool allowed)
