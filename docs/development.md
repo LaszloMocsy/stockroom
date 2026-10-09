@@ -165,6 +165,8 @@ Review the diff and commit the snapshot together with the change. Then rebuild t
 pnpm --filter api-client build
 ```
 
+CI does the same on every pull request: it fails if the snapshot is stale, and it fails if the snapshot drops or changes something the client uses, because the client then no longer compiles.
+
 Within `/api/v1`, changes must be additive: new endpoints and fields are fine, but removing or changing existing ones needs `/api/v2` (see the [specification](../SPECIFICATION.md#101-version-compatibility)).
 
 ## Before you commit
