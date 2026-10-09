@@ -8,8 +8,8 @@ namespace Stockroom.Data;
 /// two features cannot pick the same one by accident.
 /// </summary>
 /// <remarks>
-/// Fixed keys are 8 ASCII characters read as a number. Keys derived from an ID are a 64-bit hash of it,
-/// which collides with a fixed key only by a 1 in 2^64 chance.
+/// Fixed keys are 8 ASCII characters read as a number. Keys derived from an ID or a text key are a 64-bit
+/// hash of it, which collides with another key only by a 1 in 2^64 chance.
 /// </remarks>
 public static class AdvisoryLocks
 {
@@ -29,4 +29,12 @@ public static class AdvisoryLocks
     /// <summary>Waits for and takes the lock for one entity, such as a session. Call it inside a transaction.</summary>
     public static Task AcquireTransactionLockAsync(this DatabaseFacade database, Guid id, CancellationToken cancellationToken) =>
         database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({id}::text, 0))", cancellationToken);
+
+    /// <summary>
+    /// Waits for and takes the lock for a text key, such as an actor's idempotency key. Start the key with
+    /// what it identifies (e.g. <c>idempotency:</c>), so it cannot equal another feature's key or an ID.
+    /// Call it inside a transaction.
+    /// </summary>
+    public static Task AcquireTransactionLockAsync(this DatabaseFacade database, string key, CancellationToken cancellationToken) =>
+        database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
 }

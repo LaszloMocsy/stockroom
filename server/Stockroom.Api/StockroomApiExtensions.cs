@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Stockroom.Api.Auth;
 using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
+using Stockroom.Api.Jobs;
 using Stockroom.Api.Logging;
 using Stockroom.Api.OpenApi;
 using Stockroom.Api.Security;
@@ -15,6 +17,7 @@ using Stockroom.Core.Users;
 using Stockroom.Data;
 using Stockroom.Data.Products;
 using Stockroom.Data.Settings;
+using Stockroom.Data.Stock;
 using Stockroom.Data.Users;
 
 namespace Stockroom.Api;
@@ -34,6 +37,9 @@ internal static class StockroomApiExtensions
             options.UseStockroomDatabase(services.GetRequiredService<IOptions<StockroomOptions>>().Value.DatabaseUrl));
         builder.Services.AddScoped<ISettingsStore, SettingsStore>();
         builder.Services.AddScoped<ISkuGenerator, SkuGenerator>();
+        builder.Services.AddScoped<StockService>();
+        builder.Services.AddScoped<StockReconciler>();
+        builder.Services.AddHostedService<StockReconciliationJob>();
         builder.Services.AddIdentityCore<User>(options =>
             {
                 // Length rather than composition rules, which push people towards predictable passwords
@@ -49,9 +55,15 @@ internal static class StockroomApiExtensions
             .AddUserStore<StockroomUserStore>()
             .AddRoleStore<RoleStore<IdentityRole<Guid>, StockroomDbContext, Guid>>();
 
-        // JSON field names are snake_case throughout the API (spec 10).
+        // JSON field names are snake_case throughout the API (spec 10), and so are enum values, which are
+        // written as strings (e.g. "receive"), matching the names stored in the database. Numbers must be
+        // JSON numbers: the web defaults would also accept "5" as a string.
         builder.Services.ConfigureHttpJsonOptions(options =>
-            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+        {
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
+        });
 
         builder.Services.AddStockroomCors();
         builder.Services.AddStockroomAuth();

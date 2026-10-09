@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Options;
 
 namespace Stockroom.Api.Configuration;
@@ -72,6 +73,33 @@ internal sealed class StockroomOptionsSetup(IConfiguration configuration)
             else
             {
                 options.LogLevel = Enum.Parse<LogLevel>(match);
+            }
+        }
+
+        var undoWindow = Read(StockroomOptions.UndoWindowSecondsKey);
+        if (undoWindow is not null)
+        {
+            if (int.TryParse(undoWindow, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds))
+            {
+                options.UndoWindow = TimeSpan.FromSeconds(seconds);
+            }
+            else
+            {
+                errors.Add($"{StockroomOptions.UndoWindowSecondsKey} must be a whole number of seconds, 0 or more, got '{undoWindow}'.");
+            }
+        }
+
+        var reconciliationInterval = Read(StockroomOptions.ReconciliationIntervalSecondsKey);
+        if (reconciliationInterval is not null)
+        {
+            if (int.TryParse(reconciliationInterval, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds)
+                && seconds <= StockroomOptions.MaxReconciliationIntervalSeconds)
+            {
+                options.ReconciliationInterval = TimeSpan.FromSeconds(seconds);
+            }
+            else
+            {
+                errors.Add($"{StockroomOptions.ReconciliationIntervalSecondsKey} must be a whole number of seconds from 0 (off) to {StockroomOptions.MaxReconciliationIntervalSeconds} (30 days), got '{reconciliationInterval}'.");
             }
         }
     }

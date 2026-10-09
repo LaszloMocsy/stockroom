@@ -103,20 +103,20 @@ _Spec: 2, 4.7, 10.2, 11._
 
 _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 
-- [ ] **E1** — Create `StockService` with `Receive` (adds stock, writes movement and updates level in one transaction). _Done when:_ tests cover new and existing stock level rows and `quantity_after`.
-- [ ] **E2** — Add `Issue` rejecting insufficient stock using a guarded update or row lock. _Done when:_ tests cover success and an `InsufficientStock` error.
-- [ ] **E3** — Honour the `allow_negative_stock` setting in `Issue`. _Done when:_ both setting values are tested.
-- [ ] **E4** — Add `Adjust` to a `target_quantity` computing the delta, with `expected_current` conflict detection. _Done when:_ tests cover success, no-op, and a stale `expected_current` returning a conflict.
-- [ ] **E5** — Record an `initial` movement through the service when a product is created with a starting quantity. _Done when:_ tested via the service API.
-- [ ] **E6** — Add `Void` creating a linked reversing movement; a movement can only be voided once. _Done when:_ tests cover success, double void, and voiding that would make stock negative.
-- [ ] **E7** — Add idempotency: a repeated key from the same actor returns the original result and writes nothing. _Done when:_ tested, including concurrent duplicates.
-- [ ] **E8** — Add a concurrency test: many parallel `Issue` calls never oversell. _Done when:_ test is deterministic and passes repeatedly.
-- [ ] **E9** — Add reconciliation: `SUM(delta)` per product/location versus the cached level, reporting drift. _Done when:_ a test that corrupts a level makes it report drift.
-- [ ] **E10** — Add a property-based test: random operation sequences keep levels equal to the ledger sum. _Done when:_ test runs in CI within a reasonable time.
-- [ ] **E11** — Add `POST /api/v1/stock/movements` (`receive`, `issue`, `adjust`) with validation and `Idempotency-Key` support. _Done when:_ endpoint tests cover each type and error codes.
-- [ ] **E12** — Add `GET /api/v1/stock/movements` with filters (product, type, actor, from, to) and cursor pagination. _Done when:_ pagination and filters are tested.
-- [ ] **E13** — Add `POST /api/v1/stock/movements/:id/void`, allowed for ADMIN or the original actor within the undo window (configurable, default 5 minutes). _Done when:_ permission cases are tested.
-- [ ] **E14** — Run reconciliation as a scheduled hosted service that logs drift. _Done when:_ the job runs on a configurable interval; tested with a short interval.
+- [x] **E1** — Create `StockService` with `Receive` (adds stock, writes movement and updates level in one transaction). _Done when:_ tests cover new and existing stock level rows and `quantity_after`.
+- [x] **E2** — Add `Issue` rejecting insufficient stock using a guarded update or row lock. _Done when:_ tests cover success and an `InsufficientStock` error.
+- [x] **E3** — Honour the `allow_negative_stock` setting in `Issue`. _Done when:_ both setting values are tested.
+- [x] **E4** — Add `Adjust` to a `target_quantity` computing the delta, with `expected_current` conflict detection. _Done when:_ tests cover success, no-op, and a stale `expected_current` returning a conflict.
+- [x] **E5** — Record an `initial` movement through the service when a product is created with a starting quantity. _Done when:_ tested via the service API.
+- [x] **E6** — Add `Void` creating a linked reversing movement; a movement can only be voided once. _Done when:_ tests cover success, double void, and voiding that would make stock negative.
+- [x] **E7** — Add idempotency: a repeated key from the same actor returns the original result and writes nothing. _Done when:_ tested, including concurrent duplicates.
+- [x] **E8** — Add a concurrency test: many parallel `Issue` calls never oversell. _Done when:_ test is deterministic and passes repeatedly.
+- [x] **E9** — Add reconciliation: `SUM(delta)` per product/location versus the cached level, reporting drift. _Done when:_ a test that corrupts a level makes it report drift.
+- [x] **E10** — Add a property-based test: random operation sequences keep levels equal to the ledger sum. _Done when:_ test runs in CI within a reasonable time.
+- [x] **E11** — Add `POST /api/v1/stock/movements` (`receive`, `issue`, `adjust`) with validation and `Idempotency-Key` support. _Done when:_ endpoint tests cover each type and error codes.
+- [x] **E12** — Add `GET /api/v1/stock/movements` with filters (product, type, actor, from, to) and cursor pagination. _Done when:_ pagination and filters are tested.
+- [x] **E13** — Add `POST /api/v1/stock/movements/:id/void`, allowed for ADMIN or the original actor within the undo window (configurable, default 5 minutes). _Done when:_ permission cases are tested.
+- [x] **E14** — Run reconciliation as a scheduled hosted service that logs drift. _Done when:_ the job runs on a configurable interval; tested with a short interval.
 
 ## F. Products API
 

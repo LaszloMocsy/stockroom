@@ -2,8 +2,8 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.6                                              |
-| **Date**    | 2026-10-08                                              |
+| **Status**  | Draft v0.7                                              |
+| **Date**    | 2026-10-09                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
 > This document is versioned in itself. See the [Changelog](#19-changelog) at the bottom for what changed in each revision.
@@ -67,9 +67,11 @@ Two roles only.
 | Archive / restore products            |          ❌           |  ✅   |
 | View movement history of a product    |          ✅           |  ✅   |
 | View full audit log                   |          ❌           |  ✅   |
-| Void a movement                       |          ❌           |  ✅   |
+| Void a movement                       |         ❌ ¹          |  ✅   |
 | Manage users and settings             |          ❌           |  ✅   |
 | Export data                           | ✅ (products & stock) |  ✅   |
+
+¹ STAFF can void (undo) their own movements within the undo window, 5 minutes by default (section 12.2).
 
 A viewer/read-only role is a possible later addition (see [Roadmap](#15-roadmap)).
 
@@ -497,7 +499,7 @@ Documented guides: VPS + Caddy (automatic HTTPS), home server, and Railway.
 
 ### 12.2 Configuration
 
-Environment variables with sane defaults, prefixed `STOCKROOM_`: database URL, public URL, allowed CORS origins, storage provider and S3 settings, SMTP, log level. Runtime-changeable preferences live in the database settings table (P1 admin UI). The web image reads its API base URL at container start, so one image works for every deployment.
+Environment variables with sane defaults, prefixed `STOCKROOM_`: database URL, public URL, allowed CORS origins, storage provider and S3 settings, SMTP, log level, undo window, reconciliation interval. Runtime-changeable preferences live in the database settings table (P1 admin UI). The web image reads its API base URL at container start, so one image works for every deployment.
 
 ### 12.3 Backup and upgrade
 
@@ -607,6 +609,11 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.7 — 2026-10-09
+
+- **Voids:** STAFF can void their own movements within the undo window, which defaults to 5 minutes and is set by an environment variable; ADMIN can void any movement at any time (sections 2.1, 12.2).
+- **Reconciliation:** the check runs at startup and then on an interval set by an environment variable, hourly by default, and logs a warning per drifted level (sections 3.2, 12.2).
 
 ### v0.6 — 2026-10-08
 
