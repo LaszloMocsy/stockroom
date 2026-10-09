@@ -304,6 +304,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         string? idempotencyKey,
         CancellationToken cancellationToken)
     {
+        var now = time.GetUtcNow();
         var movement = new StockMovement
         {
             Id = ids.NewInternalId(),
@@ -319,7 +320,9 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             VoidsMovementId = voidsMovementId,
             IdempotencyKey = idempotencyKey,
             ActorId = actorId,
-            CreatedAt = time.GetUtcNow(),
+            // PostgreSQL stores microseconds, but the clock can be finer (100 ns ticks on Linux). Round down so the
+            // movement returned here is the one stored, and a retry returns exactly the original (spec 3.2, rule 8).
+            CreatedAt = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)),
         };
         db.StockMovements.Add(movement);
         await db.SaveChangesAsync(cancellationToken);
