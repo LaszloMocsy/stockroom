@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -68,6 +70,18 @@ internal static class ProductEndpoints
             .WithName("GetProduct")
             .WithSummary("Get a product")
             .WithDescription("Returns the product `id` with its barcodes and the units on hand. Archived products are returned too; `archived_at` tells them apart.");
+
+        products.MapPatch("/{id:guid}", UpdateProductAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("UpdateProduct")
+            .WithSummary("Update a product")
+            .WithDescription("""
+                Changes the product's name, description, or `min_stock` and returns it. Fields that are omitted stay as they are; `description` and `min_stock` can be set to `null` to remove them. `updated_at` changes only if a value does.
+
+                The SKU never changes: a `sku` field, like any field products do not have, is a validation error. Quantities change only through stock movements.
+                """);
         return endpoints;
     }
 
@@ -162,6 +176,49 @@ internal static class ProductEndpoints
         return product is null
             ? ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no product with this ID.")
             : TypedResults.Ok(product);
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> UpdateProductAsync(
+        [Description("Public ID of the product.")] Guid id,
+        UpdateProductRequest request,
+        StockroomDbContext db,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        if (Validate(request) is { } invalid)
+        {
+            return invalid;
+        }
+
+        var product = await db.Products.SingleOrDefaultAsync(p => p.PublicId == id, cancellationToken);
+        if (product is null)
+        {
+            return ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no product with this ID.");
+        }
+
+        if (request.HasName)
+        {
+            product.Name = request.Name!;
+        }
+
+        if (request.HasDescription)
+        {
+            product.Description = request.Description;
+        }
+
+        if (request.HasMinStock)
+        {
+            product.MinStock = request.MinStock;
+        }
+
+        // EF tracks a value set to what it already was as unchanged.
+        if (db.ChangeTracker.HasChanges())
+        {
+            product.UpdatedAt = time.GetUtcNow();
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return TypedResults.Ok(await ProductResponse.Project(db.Products.Where(p => p.Id == product.Id), db).SingleAsync(cancellationToken));
     }
 
     private static async Task<Results<Created<ProductResponse>, ProblemHttpResult>> CreateProductAsync(
@@ -298,6 +355,26 @@ internal static class ProductEndpoints
 
         return errors.Count == 0 ? null : ApiResults.ValidationFailed(errors);
     }
+
+    /// <summary>What DataAnnotations cannot express: a name that is removed or blank, and fields products do not have.</summary>
+    private static ProblemHttpResult? Validate(UpdateProductRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.HasName && string.IsNullOrWhiteSpace(request.Name))
+        {
+            errors[nameof(request.Name)] = ["The name cannot be blank or removed."];
+        }
+
+        foreach (var field in request.UnknownFields?.Keys ?? Enumerable.Empty<string>())
+        {
+            // Reported under the name as sent; the envelope's snake_case conversion leaves snake_case names alone.
+            errors[field] = field == "sku"
+                ? ["The SKU cannot be changed."]
+                : ["Products have no such field."];
+        }
+
+        return errors.Count == 0 ? null : ApiResults.ValidationFailed(errors);
+    }
 }
 
 /// <summary>Request body for <c>POST /api/v1/products</c>.</summary>
@@ -315,3 +392,51 @@ public sealed record CreateProductRequest(
     // Long enough for QR payloads, short enough for the unique index (PostgreSQL limits B-tree entries to about 2.7 kB).
     [property: StringLength(512)] string? Barcode = null,
     [property: Range(0, StockMovementEndpoints.MaxQuantity)] int? InitialQuantity = null);
+
+/// <summary>
+/// Request body for <c>PATCH /api/v1/products/{id}</c>, a JSON merge patch (RFC 7396): fields that are omitted
+/// stay as they are, and <c>null</c> removes a value. The <c>Has…</c> flags tell an omitted field from a <c>null</c> one.
+/// </summary>
+public sealed class UpdateProductRequest
+{
+    private readonly string? _name;
+    private readonly string? _description;
+    private readonly int? _minStock;
+
+    /// <summary>New display name. Cannot be <c>null</c> or blank.</summary>
+    [StringLength(200)]
+    public string? Name
+    {
+        get => _name;
+        init => (_name, HasName) = (value, true);
+    }
+
+    /// <summary>New free-text description; <c>null</c> removes it.</summary>
+    [StringLength(2000)]
+    public string? Description
+    {
+        get => _description;
+        init => (_description, HasDescription) = (value, true);
+    }
+
+    /// <summary>New low-stock threshold; <c>null</c> turns the alert off.</summary>
+    [Range(0, StockMovementEndpoints.MaxQuantity)]
+    public int? MinStock
+    {
+        get => _minStock;
+        init => (_minStock, HasMinStock) = (value, true);
+    }
+
+    [JsonIgnore]
+    public bool HasName { get; private init; }
+
+    [JsonIgnore]
+    public bool HasDescription { get; private init; }
+
+    [JsonIgnore]
+    public bool HasMinStock { get; private init; }
+
+    /// <summary>Fields products do not have, such as <c>sku</c>, which are rejected rather than ignored.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnknownFields { get; init; }
+}

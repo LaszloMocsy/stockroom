@@ -127,7 +127,7 @@ _Spec: 3.1, 4.1, 4.6, 7.1, 10._
 - [x] **F3** — Add `GET /api/v1/products` with cursor pagination and sorting. _Done when:_ tested with more than one page.
 - [x] **F4** — Add the `q` search (name, SKU, barcode) with a trigram index. _Done when:_ partial and case-insensitive matches are tested.
 - [x] **F5** — Add the `low_stock` and `archived` filters. _Done when:_ each filter is tested.
-- [ ] **F6** — Add `PATCH /api/v1/products/:id` (name, description, `min_stock`; SKU immutable). _Done when:_ tested, including attempts to change the SKU.
+- [x] **F6** — Add `PATCH /api/v1/products/:id` (name, description, `min_stock`; SKU immutable). _Done when:_ tested, including attempts to change the SKU.
 - [ ] **F7** — Add ADMIN-only `archive` and `restore` endpoints. _Done when:_ STAFF get 403; archived products are hidden by default; tested.
 - [ ] **F8** — Add `POST /api/v1/products/:id/barcodes` and `DELETE …/barcodes/:barcode`. _Done when:_ duplicate and last-barcode cases are tested.
 - [ ] **F9** — Add `GET /api/v1/products/lookup?barcode=|sku=`. _Done when:_ found, not found, and archived cases are tested.
