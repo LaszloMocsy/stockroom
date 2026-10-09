@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Stockroom.Api.Auth;
@@ -42,7 +43,9 @@ internal static class ProductEndpoints
                 $"""
                 Returns products matching `q`, if given: those whose name, SKU, or any barcode contains it, ignoring case. A blank `q` matches everything.
 
-                Products are sorted by `sort`: `name` (the default), `sku`, or `created_at`, with a leading `-` for descending, e.g. `-created_at` for newest first. Products that tie are ordered by ID. Pages hold up to `limit` products ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same `q` and `sort` for the next page, until it is `null`.
+                Archived products are left out unless `archived` is `true`, which lists only them. `low_stock=true` keeps only products at or below their `min_stock`, and `low_stock=false` only the others, including those without a `min_stock`. All filters combine.
+
+                Products are sorted by `sort`: `name` (the default), `sku`, or `created_at`, with a leading `-` for descending, e.g. `-created_at` for newest first. Products that tie are ordered by ID. Pages hold up to `limit` products ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same filters and `sort` for the next page, until it is `null`.
                 """));
 
         products.MapPost("", CreateProductAsync)
@@ -70,6 +73,10 @@ internal static class ProductEndpoints
 
     private static async Task<Results<Ok<ListResponse<ProductResponse>>, ProblemHttpResult>> ListProductsAsync(
         [Description("Text to find in the name, SKU, or a barcode.")] string? q,
+        [Description("`true` for only products at or below their `min_stock`, `false` for only the others.")]
+        [FromQuery(Name = "low_stock")]
+        bool? lowStock,
+        [Description("`true` for only archived products; `false`, the default, for only active ones.")] bool? archived,
         [Description("`name`, `sku`, or `created_at`; a leading `-` sorts descending.")] string? sort,
         [Description("`next_cursor` from the previous page.")] string? cursor,
         [Description("Page size.")] int? limit,
@@ -119,6 +126,21 @@ internal static class ProductEndpoints
             products = products.Where(p => EF.Functions.ILike(p.Name, pattern, LikeEscape)
                 || EF.Functions.ILike(p.Sku, pattern, LikeEscape)
                 || p.Barcodes.Any(b => EF.Functions.ILike(b.Barcode, pattern, LikeEscape)));
+        }
+
+        products = archived == true ? products.Where(p => p.ArchivedAt != null) : products.Where(p => p.ArchivedAt == null);
+
+        // Low stock is a quantity, summed as ProductResponse does, at or below min_stock (spec 4.3). A product
+        // without a min_stock is never low.
+        if (lowStock == true)
+        {
+            products = products.Where(p => p.MinStock != null
+                && (db.StockLevels.Where(l => l.ProductId == p.Id).Sum(l => (int?)l.Quantity) ?? 0) <= p.MinStock);
+        }
+        else if (lowStock == false)
+        {
+            products = products.Where(p => p.MinStock == null
+                || (db.StockLevels.Where(l => l.ProductId == p.Id).Sum(l => (int?)l.Quantity) ?? 0) > p.MinStock);
         }
 
         // One extra row tells whether another page follows.
