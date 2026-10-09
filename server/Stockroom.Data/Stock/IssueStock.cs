@@ -14,4 +14,10 @@ public sealed record IssueStock(Guid ProductId, int Quantity, Guid ActorId)
 
     /// <summary>External reference, such as an order number or delivery note.</summary>
     public string? Reference { get; init; }
+
+    /// <summary>
+    /// Client-supplied key that makes a retry of this request return the original movement instead of
+    /// writing another (spec 3.2, rule 8). Unique per actor.
+    /// </summary>
+    public string? IdempotencyKey { get; init; }
 }

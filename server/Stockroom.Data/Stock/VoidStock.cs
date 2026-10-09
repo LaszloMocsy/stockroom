@@ -10,4 +10,10 @@ public sealed record VoidStock(Guid MovementId, Guid ActorId)
     public StockMovementReason Reason { get; init; } = StockMovementReason.Correction;
 
     public string? Note { get; init; }
+
+    /// <summary>
+    /// Client-supplied key that makes a retry of this request return the original movement instead of
+    /// writing another (spec 3.2, rule 8). Unique per actor.
+    /// </summary>
+    public string? IdempotencyKey { get; init; }
 }

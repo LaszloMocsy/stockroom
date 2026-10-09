@@ -13,8 +13,16 @@ namespace Stockroom.Data.Stock;
 /// starts its own.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Products and actors are internal IDs; resolving public IDs is the API's job. Until locations arrive
 /// (P1), every movement is at <see cref="Location.MainStorageId"/>.
+/// </para>
+/// <para>
+/// Requests may carry an idempotency key (spec 3.2, rule 8). A request whose actor already made a movement
+/// with that key returns that movement and writes nothing, without validating anything else, so a client
+/// can safely retry after a lost response. Only movements remember keys: a request that failed or changed
+/// nothing is evaluated afresh when retried.
+/// </para>
 /// </remarks>
 public sealed class StockService(StockroomDbContext db, ISettingsStore settings, IIdGenerator ids, TimeProvider time)
 {
@@ -39,7 +47,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
 
             return await AppendAsync(
                 request.ProductId, StockMovementType.Initial, request.Quantity, request.Quantity,
-                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+                request.Reason, request.Note, request.Reference, request.ActorId, idempotencyKey: null, cancellationToken);
         }, cancellationToken);
     }
 
@@ -51,10 +59,15 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
 
         return InTransactionAsync(async () =>
         {
+            if (await FindRetriedAsync(request.ActorId, request.IdempotencyKey, cancellationToken) is { } retried)
+            {
+                return retried;
+            }
+
             var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, request.Quantity, cancellationToken);
             return await AppendAsync(
                 request.ProductId, StockMovementType.Receive, request.Quantity, quantityAfter,
-                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+                request.Reason, request.Note, request.Reference, request.ActorId, request.IdempotencyKey, cancellationToken);
         }, cancellationToken);
     }
 
@@ -70,6 +83,11 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
 
         return InTransactionAsync(async () =>
         {
+            if (await FindRetriedAsync(request.ActorId, request.IdempotencyKey, cancellationToken) is { } retried)
+            {
+                return retried;
+            }
+
             // The lock holds off concurrent movements until this transaction ends, so the quantity checked
             // is still the quantity when the level is updated, and parallel issues cannot oversell. The
             // setting is read only when it matters, so a normal issue costs no extra query.
@@ -83,7 +101,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, -request.Quantity, cancellationToken);
             return await AppendAsync(
                 request.ProductId, StockMovementType.Issue, -request.Quantity, quantityAfter,
-                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+                request.Reason, request.Note, request.Reference, request.ActorId, request.IdempotencyKey, cancellationToken);
         }, cancellationToken);
     }
 
@@ -102,6 +120,11 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
 
         return InTransactionAsync<StockMovement?>(async () =>
         {
+            if (await FindRetriedAsync(request.ActorId, request.IdempotencyKey, cancellationToken) is { } retried)
+            {
+                return retried;
+            }
+
             // Locked, so the quantity compared and the delta computed still hold when the level is updated.
             var current = await LockLevelAsync(request.ProductId, Location.MainStorageId, cancellationToken);
             if (request.ExpectedCurrent is { } expected && expected != current)
@@ -118,7 +141,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, delta, cancellationToken);
             return await AppendAsync(
                 request.ProductId, StockMovementType.Adjust, delta, quantityAfter,
-                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+                request.Reason, request.Note, request.Reference, request.ActorId, request.IdempotencyKey, cancellationToken);
         }, cancellationToken);
     }
 
@@ -137,6 +160,11 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
     public Task<StockMovement> VoidAsync(VoidStock request, CancellationToken cancellationToken) =>
         InTransactionAsync(async () =>
         {
+            if (await FindRetriedAsync(request.ActorId, request.IdempotencyKey, cancellationToken) is { } retried)
+            {
+                return retried;
+            }
+
             var original = await db.StockMovements
                 .AsNoTracking()
                 .Where(m => m.Id == request.MovementId)
@@ -165,8 +193,29 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             var quantityAfter = await AddToLevelAsync(original.ProductId, original.LocationId, delta, cancellationToken);
             return await AppendAsync(
                 original.ProductId, original.LocationId, StockMovementType.Void, delta, quantityAfter,
-                request.Reason, request.Note, reference: null, request.MovementId, request.ActorId, cancellationToken);
+                request.Reason, request.Note, reference: null, request.MovementId, request.ActorId, request.IdempotencyKey,
+                cancellationToken);
         }, cancellationToken);
+
+    /// <summary>
+    /// The movement the actor already made with <paramref name="idempotencyKey"/>, or <see langword="null"/>
+    /// if there is none or no key. Takes a lock on the key until the transaction ends, so a concurrent
+    /// duplicate waits for this request and then finds its movement instead of writing a second one.
+    /// </summary>
+    /// <exception cref="ArgumentException">The key is empty or whitespace.</exception>
+    private async Task<StockMovement?> FindRetriedAsync(Guid actorId, string? idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (idempotencyKey is null)
+        {
+            return null;
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        await db.Database.AcquireTransactionLockAsync($"idempotency:{actorId}:{idempotencyKey}", cancellationToken);
+        return await db.StockMovements
+            .AsNoTracking()
+            .SingleOrDefaultAsync(m => m.ActorId == actorId && m.IdempotencyKey == idempotencyKey, cancellationToken);
+    }
 
     /// <summary>Runs <paramref name="operation"/> in the caller's transaction, or in a new one it commits on success.</summary>
     private async Task<T> InTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
@@ -235,10 +284,11 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         string? note,
         string? reference,
         Guid actorId,
+        string? idempotencyKey,
         CancellationToken cancellationToken) =>
         AppendAsync(
             productId, Location.MainStorageId, type, delta, quantityAfter,
-            reason, note, reference, voidsMovementId: null, actorId, cancellationToken);
+            reason, note, reference, voidsMovementId: null, actorId, idempotencyKey, cancellationToken);
 
     private async Task<StockMovement> AppendAsync(
         Guid productId,
@@ -251,6 +301,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         string? reference,
         Guid? voidsMovementId,
         Guid actorId,
+        string? idempotencyKey,
         CancellationToken cancellationToken)
     {
         var movement = new StockMovement
@@ -266,6 +317,7 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
             Note = note,
             Reference = reference,
             VoidsMovementId = voidsMovementId,
+            IdempotencyKey = idempotencyKey,
             ActorId = actorId,
             CreatedAt = time.GetUtcNow(),
         };

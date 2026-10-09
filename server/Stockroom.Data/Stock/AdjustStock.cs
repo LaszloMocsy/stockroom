@@ -20,4 +20,10 @@ public sealed record AdjustStock(Guid ProductId, int TargetQuantity, Guid ActorI
 
     /// <summary>External reference, such as a stocktake sheet.</summary>
     public string? Reference { get; init; }
+
+    /// <summary>
+    /// Client-supplied key that makes a retry of this request return the original movement instead of
+    /// writing another (spec 3.2, rule 8). Unique per actor.
+    /// </summary>
+    public string? IdempotencyKey { get; init; }
 }

@@ -674,6 +674,124 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task ARepeatedReceiveKeyReturnsTheOriginalMovementAndWritesNothing()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var request = new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = "7c1b0d2e" };
+        var original = await ReceiveAsync(databaseUrl, request);
+
+        var retried = await ReceiveAsync(databaseUrl, request);
+
+        Assert.Equivalent(original, retried, strict: true);
+        Assert.Equal("7c1b0d2e", original.IdempotencyKey);
+        Assert.Equal(5, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(1, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task ARetriedIssueIsNotCheckedAgain()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id));
+        var request = new IssueStock(product.Id, 5, Actor.Id) { IdempotencyKey = "sale-1042" };
+        var original = await IssueAsync(databaseUrl, request);
+
+        // Repeating the issue would fail for lack of stock; the retry returns the original instead.
+        var retried = await IssueAsync(databaseUrl, request);
+
+        Assert.Equivalent(original, retried, strict: true);
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task ARetriedAdjustReturnsTheOriginalMovement()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 45, Actor.Id));
+        var request = new AdjustStock(product.Id, 42, Actor.Id) { ExpectedCurrent = 45, IdempotencyKey = "count-1" };
+        var original = await AdjustAsync(databaseUrl, request);
+
+        // The expected quantity is stale by now, but the retry is not compared again.
+        var retried = await AdjustAsync(databaseUrl, request);
+
+        Assert.Equivalent(original, retried, strict: true);
+        Assert.Equal(42, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task ARetriedVoidReturnsTheOriginalVoid()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var received = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 10, Actor.Id));
+        var request = new VoidStock(received.Id, Actor.Id) { IdempotencyKey = "undo-1" };
+        var original = await VoidAsync(databaseUrl, request);
+
+        // Without the key, voiding again would be refused as already voided.
+        var retried = await VoidAsync(databaseUrl, request);
+
+        Assert.Equivalent(original, retried, strict: true);
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task DifferentActorsMayUseTheSameKey()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var other = TestUsers.New("other");
+        await TestDatabase.AddAsync(databaseUrl, other);
+
+        var first = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = "same" });
+        var second = await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, other.Id) { IdempotencyKey = "same" });
+
+        Assert.NotEqual(first.PublicId, second.PublicId);
+        Assert.Equal(10, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task DifferentKeysAreDifferentRequests()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = "first" });
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = "second" });
+
+        Assert.Equal(10, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task ConcurrentDuplicatesWriteOneMovement()
+    {
+        const int Duplicates = 10;
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 20, Actor.Id));
+        var request = new IssueStock(product.Id, 3, Actor.Id) { IdempotencyKey = "flaky-network" };
+
+        // Each duplicate has its own context and connection, as retries racing their original would.
+        var results = await Task.WhenAll(Enumerable.Range(0, Duplicates).Select(_ => Task.Run(
+            () => IssueAsync(databaseUrl, request),
+            Token)));
+
+        Assert.Single(results.Select(m => m.PublicId).Distinct());
+        Assert.Equal(17, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(2, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public async Task ABlankKeyIsRejected(string key)
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = key }));
+
+        await AssertNothingWrittenAsync(databaseUrl);
+    }
+
+    [Fact]
     public async Task TheApiProvidesTheService()
     {
         await using var factory = await StockroomApiFactory.CreateAsync(postgres);
