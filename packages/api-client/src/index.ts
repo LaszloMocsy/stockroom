@@ -7,6 +7,8 @@ export {
   normaliseBaseUrl,
   type ApiClient,
   type ApiClientOptions,
+  type TokenRefreshOptions,
+  type TokenResponse,
 } from "./client.js";
 
 /** A schema from the API contract by name, for example `Schema<"ProductResponse">`. */
