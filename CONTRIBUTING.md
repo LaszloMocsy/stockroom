@@ -35,6 +35,8 @@ dotnet --version      # should print the SDK pinned in global.json
 (cd server && dotnet tool restore)  # installs dotnet-ef for EF Core migrations
 ```
 
+To run the API, the tests, and the development seed data, follow [docs/development.md](docs/development.md).
+
 ## Ground rules
 
 - **Stock integrity comes first.** Quantities change only through ledger movements (see section 3.2 of the specification). Pull requests that write stock levels any other way will not be accepted.

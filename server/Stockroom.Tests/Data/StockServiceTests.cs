@@ -690,6 +690,25 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task ARetryReturnsTheOriginalTimeWhenTheClockIsFinerThanTheDatabase()
+    {
+        // PostgreSQL keeps microseconds, but clocks can tick in 100 ns steps (they do on Linux).
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        var request = new ReceiveStock(product.Id, 5, Actor.Id) { IdempotencyKey = "4f0e9a1c" };
+        StockMovement original;
+        await using (var db = TestDatabase.CreateContext(databaseUrl))
+        {
+            var clock = new FakeTimeProvider(Now.AddTicks(1_234_567));
+            original = await new StockService(db, new SettingsStore(db), TestDatabase.Ids, clock).ReceiveAsync(request, Token);
+        }
+
+        var retried = await ReceiveAsync(databaseUrl, request);
+
+        Assert.Equal(Now.AddTicks(1_234_560), original.CreatedAt);
+        Assert.Equivalent(original, retried, strict: true);
+    }
+
+    [Fact]
     public async Task ARetriedIssueIsNotCheckedAgain()
     {
         var (databaseUrl, product) = await CreateDatabaseWithProductAsync();

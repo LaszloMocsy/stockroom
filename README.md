@@ -50,6 +50,7 @@ The first milestone is a mobile-first MVP with a minimal web app. See the [roadm
 
 ## Documentation
 
+- [Development](docs/development.md): running the API, the tests, and the seed data locally.
 - [Configuration](docs/configuration.md): the `STOCKROOM_*` environment variables.
 
 ## Contributing

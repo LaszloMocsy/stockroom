@@ -1,0 +1,35 @@
+# PostgreSQL for local development. Not for production: see the self-hosting
+# compose file for that.
+#
+#   docker compose -f docker/compose.dev.yml up -d
+#
+# The credentials match the defaults in
+# server/Stockroom.Api/appsettings.Development.json, so `dotnet run` in
+# server/Stockroom.Api connects without further configuration. They are
+# development-only and the port is bound to localhost.
+#
+# `docker compose -f docker/compose.dev.yml down -v` removes the data volume
+# for a fresh database.
+name: stockroom-dev
+
+services:
+  db:
+    # Same major version as the tests (PostgresFixture) and spec 12.1.
+    image: postgres:17
+    environment:
+      POSTGRES_DB: stockroom
+      POSTGRES_USER: stockroom
+      POSTGRES_PASSWORD: stockroom
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockroom -d stockroom"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  pgdata:

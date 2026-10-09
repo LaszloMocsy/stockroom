@@ -37,3 +37,46 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm format:check
+
+  server:
+    name: .NET build and test
+    # A full VM: the integration tests start PostgreSQL in Docker through
+    # Testcontainers, and ubuntu-slim has no Docker.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs the SDK pinned in global.json.
+      - uses: actions/setup-dotnet@v6
+
+      # setup-dotnet's own cache needs packages.lock.json files, which the
+      # projects do not use, so cache the NuGet folder keyed on the project files.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('server/**/*.csproj', 'server/Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet restore
+
+      # Warnings, including code-style violations, fail the build
+      # (Directory.Build.props).
+      - run: dotnet build --no-restore --configuration Release
+
+      # Docker Hub rate-limits pulls from shared runner IPs (429 Too Many
+      # Requests). Pull the official image from the AWS ECR Public mirror and
+      # tag it, so Testcontainers finds it locally and does not pull. Keep the
+      # tag in sync with PostgresFixture.Image.
+      - name: Pull PostgreSQL image
+        run: |
+          docker pull public.ecr.aws/docker/library/postgres:17
+          docker tag public.ecr.aws/docker/library/postgres:17 postgres:17
+
+      - run: dotnet test --no-build --configuration Release

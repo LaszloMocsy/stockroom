@@ -19,10 +19,14 @@ public sealed class RequestLoggingFixture(PostgresFixture postgres) : IAsyncLife
         Client = new HttpClient { BaseAddress = Api.BaseAddress };
     }
 
+    // Null-safe, so a failed InitializeAsync is reported on its own rather than followed by a NullReferenceException.
     public async ValueTask DisposeAsync()
     {
-        Client.Dispose();
-        await Api.DisposeAsync();
+        Client?.Dispose();
+        if (Api is not null)
+        {
+            await Api.DisposeAsync();
+        }
     }
 }
 

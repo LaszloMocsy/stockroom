@@ -15,11 +15,17 @@ public static partial class ApiProcess
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    /// <summary>Starts the API and waits for it to exit (used for startup failures).</summary>
-    public static async Task<Result> RunAsync(IReadOnlyDictionary<string, string?> settings, CancellationToken cancellationToken)
+    /// <summary>
+    /// Starts the API and waits for it to exit (used for startup failures and commands such as <c>seed</c>).
+    /// </summary>
+    public static async Task<Result> RunAsync(
+        IReadOnlyDictionary<string, string?> settings,
+        CancellationToken cancellationToken,
+        string environment = "Production",
+        params IReadOnlyList<string> args)
     {
         using var workingDirectory = new TempDirectory();
-        using var process = Start(settings, workingDirectory.Path);
+        using var process = Start(settings, workingDirectory.Path, environment, args);
         var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
 
@@ -42,7 +48,7 @@ public static partial class ApiProcess
     public static async Task<RunningApi> StartAsync(IReadOnlyDictionary<string, string?> settings, CancellationToken cancellationToken)
     {
         var workingDirectory = new TempDirectory();
-        var process = Start(settings, workingDirectory.Path);
+        var process = Start(settings, workingDirectory.Path, "Production", []);
         var api = new RunningApi(process, workingDirectory);
         try
         {
@@ -56,7 +62,7 @@ public static partial class ApiProcess
         }
     }
 
-    private static Process Start(IReadOnlyDictionary<string, string?> settings, string workingDirectory)
+    private static Process Start(IReadOnlyDictionary<string, string?> settings, string workingDirectory, string environment, IReadOnlyList<string> args)
     {
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -67,12 +73,17 @@ public static partial class ApiProcess
             RedirectStandardError = true,
         };
 
+        foreach (var arg in args)
+        {
+            startInfo.ArgumentList.Add(arg);
+        }
+
         foreach (var key in startInfo.Environment.Keys.Where(k => k.StartsWith("STOCKROOM_", StringComparison.Ordinal)).ToList())
         {
             startInfo.Environment.Remove(key);
         }
 
-        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = environment;
         startInfo.Environment["ASPNETCORE_URLS"] = "http://127.0.0.1:0";
         foreach (var (key, value) in settings)
         {
