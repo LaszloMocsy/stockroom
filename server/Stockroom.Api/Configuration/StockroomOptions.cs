@@ -10,6 +10,7 @@ public sealed class StockroomOptions
     public const string PublicUrlKey = "STOCKROOM_PUBLIC_URL";
     public const string AllowedCorsOriginsKey = "STOCKROOM_ALLOWED_CORS_ORIGINS";
     public const string LogLevelKey = "STOCKROOM_LOG_LEVEL";
+    public const string UndoWindowSecondsKey = "STOCKROOM_UNDO_WINDOW_SECONDS";
 
     /// <summary>PostgreSQL connection string. Required.</summary>
     public string DatabaseUrl { get; set; } = string.Empty;
@@ -22,4 +23,10 @@ public sealed class StockroomOptions
 
     /// <summary>Default minimum log level. <see cref="LogLevel.Information"/> by default.</summary>
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
+
+    /// <summary>
+    /// How long after recording a movement its actor may void it without being an ADMIN (spec 4.2).
+    /// Five minutes by default; zero leaves voiding to ADMIN users.
+    /// </summary>
+    public TimeSpan UndoWindow { get; set; } = TimeSpan.FromMinutes(5);
 }

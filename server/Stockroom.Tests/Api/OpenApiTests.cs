@@ -49,6 +49,11 @@ public sealed class OpenApiTests(StockroomApiFactory factory, PostgresFixture po
         var quantity = schemas.GetProperty("CreateStockMovementRequest").GetProperty("properties").GetProperty("quantity");
         Assert.Equal(["null", "integer"], quantity.GetProperty("type").EnumerateArray().Select(t => t.GetString()));
         Assert.Equal(1, quantity.GetProperty("minimum").GetInt32());
+
+        var voidMovement = root.GetProperty("paths").GetProperty("/api/v1/stock/movements/{id}/void").GetProperty("post");
+        Assert.Equal("VoidStockMovement", voidMovement.GetProperty("operationId").GetString());
+        Assert.Equal(["201", "400", "401", "403", "404", "409"], voidMovement.GetProperty("responses").EnumerateObject().Select(r => r.Name));
+        Assert.False(voidMovement.GetProperty("requestBody").TryGetProperty("required", out var required) && required.GetBoolean());
     }
 
     [Fact]

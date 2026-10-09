@@ -6,9 +6,12 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Stockroom.Api.Auth;
+using Stockroom.Api.Configuration;
 using Stockroom.Api.Errors;
 using Stockroom.Core.Stock;
+using Stockroom.Core.Users;
 using Stockroom.Data;
 using Stockroom.Data.Stock;
 
@@ -16,12 +19,15 @@ namespace Stockroom.Api.Endpoints;
 
 /// <summary>
 /// <c>/api/v1/stock/movements</c>: the ledger (spec 3.2, 4.2). Any logged-in user can read it and change stock
-/// through it.
+/// through it. Voiding is for ADMIN users, and for a movement's own actor within the undo window.
 /// </summary>
 internal static class StockMovementEndpoints
 {
     public const string InsufficientStock = "insufficient_stock";
     public const string QuantityChanged = "quantity_changed";
+    public const string UndoWindowExpired = "undo_window_expired";
+    public const string AlreadyVoided = "already_voided";
+    public const string MovementIsVoid = "movement_is_void";
 
     /// <summary>The largest quantity one movement may add, remove, or set, which keeps levels far from overflowing.</summary>
     public const int MaxQuantity = 1_000_000;
@@ -63,6 +69,24 @@ internal static class StockMovementEndpoints
                 An `issue` of more than is on hand returns 409 with `{InsufficientStock}` and `details.requested` and `details.available`, unless negative stock is allowed. An `adjust` with an `expected_current` that is no longer the quantity returns 409 with `{QuantityChanged}` and `details.expected` and `details.current`, so the user can confirm against the new value. An `adjust` to the current quantity records nothing and returns 204.
 
                 Send an `{IdempotencyKeyHeader}` header (up to {MaxIdempotencyKeyLength} characters, unique per user) to make retries safe: repeating a request with a key that already recorded a movement returns that movement again and changes nothing.
+                """));
+
+        movements.MapPost("/{id:guid}/void", VoidMovementAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .Produces<ErrorResponse>(StatusCodes.Status409Conflict)
+            .WithName("VoidStockMovement")
+            .WithSummary("Reverse a movement")
+            .WithDescription(string.Create(
+                CultureInfo.InvariantCulture,
+                $"""
+                Records a `void` movement that reverses the movement `id` and returns it; history is never deleted. The body is optional; `reason` defaults to `correction`.
+
+                ADMIN users can void any movement. Other users can void only their own movements, and only within the server's undo window (5 minutes by default); after that the response is 403 with `{UndoWindowExpired}`.
+
+                A movement is voided at most once (409 `{AlreadyVoided}`), and a void cannot itself be voided (409 `{MovementIsVoid}`). Voiding a movement that added stock returns 409 with `{InsufficientStock}` when those units are no longer on hand, unless negative stock is allowed. The `{IdempotencyKeyHeader}` header works as for recording a movement, and a retry returns the void even after the undo window has closed.
                 """));
         return endpoints;
     }
@@ -261,6 +285,90 @@ internal static class StockMovementEndpoints
         return TypedResults.Created((string?)null, response);
     }
 
+    private static async Task<Results<Created<StockMovementResponse>, ProblemHttpResult>> VoidMovementAsync(
+        [Description("Public ID of the movement to void.")] Guid id,
+        VoidStockMovementRequest? request,
+        [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        ClaimsPrincipal principal,
+        StockroomDbContext db,
+        StockService stock,
+        IOptions<StockroomOptions> options,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        ValidateIdempotencyKey(idempotencyKey, errors);
+        if (errors.Count > 0)
+        {
+            return ApiResults.ValidationFailed(errors);
+        }
+
+        var actorPublicId = principal.UserPublicId();
+        var actorId = await db.Users.Where(u => u.PublicId == actorPublicId).Select(u => (Guid?)u.Id).SingleOrDefaultAsync(cancellationToken);
+        if (actorId is null)
+        {
+            return ApiResults.Error(StatusCodes.Status401Unauthorized, ErrorCodes.Unauthorized, "The user for this access token no longer exists.");
+        }
+
+        var original = await db.StockMovements
+            .Where(m => m.PublicId == id)
+            .Select(m => new { m.Id, m.ActorId, m.CreatedAt })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (original is null)
+        {
+            return ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no stock movement with this ID.");
+        }
+
+        // A retry was allowed the first time, so it gets its void back even once the undo window has closed.
+        var isRetry = idempotencyKey is not null
+            && await db.StockMovements.AnyAsync(m => m.ActorId == actorId && m.IdempotencyKey == idempotencyKey, cancellationToken);
+        if (!isRetry && !principal.IsInRole(Roles.Admin))
+        {
+            if (original.ActorId != actorId)
+            {
+                return ApiResults.Error(StatusCodes.Status403Forbidden, ErrorCodes.Forbidden, "Only an admin or the user who recorded a movement can void it.");
+            }
+
+            if (time.GetUtcNow() >= original.CreatedAt + options.Value.UndoWindow)
+            {
+                return ApiResults.Error(StatusCodes.Status403Forbidden, UndoWindowExpired, "It is too late to undo this movement. Ask an admin to void it.");
+            }
+        }
+
+        StockMovement movement;
+        try
+        {
+            movement = await stock.VoidAsync(
+                new VoidStock(original.Id, actorId.Value)
+                {
+                    Reason = request?.Reason ?? StockMovementReason.Correction,
+                    Note = request?.Note,
+                    IdempotencyKey = idempotencyKey,
+                },
+                cancellationToken);
+        }
+        catch (InsufficientStockException ex)
+        {
+            return ApiResults.Error(
+                StatusCodes.Status409Conflict,
+                InsufficientStock,
+                $"Only {ex.Available} units are on hand, so the {ex.Requested} this movement added cannot be removed.",
+                new { ex.Requested, ex.Available });
+        }
+        catch (MovementNotVoidableException ex)
+        {
+            return ApiResults.Error(
+                StatusCodes.Status409Conflict,
+                ex.Reason == MovementNotVoidableReason.AlreadyVoided ? AlreadyVoided : MovementIsVoid,
+                ex.Message);
+        }
+
+        var response = await StockMovementResponse
+            .Project(db.StockMovements.Where(m => m.Id == movement.Id), db)
+            .SingleAsync(cancellationToken);
+        return TypedResults.Created((string?)null, response);
+    }
+
     /// <summary>The checks that depend on the movement type, which DataAnnotations cannot express.</summary>
     private static ProblemHttpResult? Validate(CreateStockMovementRequest request, string? idempotencyKey)
     {
@@ -295,12 +403,16 @@ internal static class StockMovementEndpoints
             }
         }
 
+        ValidateIdempotencyKey(idempotencyKey, errors);
+        return errors.Count == 0 ? null : ApiResults.ValidationFailed(errors);
+    }
+
+    private static void ValidateIdempotencyKey(string? idempotencyKey, Dictionary<string, string[]> errors)
+    {
         if (idempotencyKey is not null && (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > MaxIdempotencyKeyLength))
         {
             errors[IdempotencyKeyHeader] = [$"The key must be 1 to {MaxIdempotencyKeyLength} characters and not blank."];
         }
-
-        return errors.Count == 0 ? null : ApiResults.ValidationFailed(errors);
     }
 }
 
@@ -330,3 +442,10 @@ public sealed record CreateStockMovementRequest(
     StockMovementReason? Reason = null,
     [property: StringLength(2000)] string? Note = null,
     [property: StringLength(200)] string? Reference = null);
+
+/// <summary>Optional request body for <c>POST /api/v1/stock/movements/:id/void</c>.</summary>
+/// <param name="Reason">Why the movement is reversed. Defaults to <c>correction</c>.</param>
+/// <param name="Note">Free text.</param>
+public sealed record VoidStockMovementRequest(
+    StockMovementReason? Reason = null,
+    [property: StringLength(2000)] string? Note = null);

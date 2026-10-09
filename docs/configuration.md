@@ -18,12 +18,14 @@ Runtime-changeable preferences (such as the negative-stock policy) live in the d
 | `STOCKROOM_PUBLIC_URL`           |   yes    | —             | Absolute `http` or `https` URL that clients use to reach this server, for example `https://stock.example.com`.               |
 | `STOCKROOM_ALLOWED_CORS_ORIGINS` |    no    | empty         | Comma-separated origins allowed to call the API from a browser, for example `https://app.example.com,http://localhost:5173`. |
 | `STOCKROOM_LOG_LEVEL`            |    no    | `Information` | Default minimum log level: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`, or `None` (case-insensitive).    |
+| `STOCKROOM_UNDO_WINDOW_SECONDS`  |    no    | `300`         | How many seconds after recording a stock movement its user may undo (void) it. `0` leaves voiding to ADMIN users.            |
 
 ### Notes
 
 - **CORS origins** are a scheme, host, and optional port, with no path. A trailing `/` is ignored. A browser origin must match one of them exactly: there are no wildcards, and `http` versus `https`, a different port, or a subdomain counts as a different origin. Leave the list empty when the web app is served behind the same reverse proxy as the API, which avoids CORS entirely. Cookies are not sent across origins; clients authenticate with the `Authorization` header.
 - **Log level** sets the default only. Noisy framework categories such as `Microsoft.AspNetCore` stay at `Warning`.
 - **Health probes** (`/healthz`, `/readyz`) that succeed are logged at `Debug`, so they only appear with `STOCKROOM_LOG_LEVEL=Debug` or `Trace`. Failing probes are logged like any other request.
+- **Undo window** applies to STAFF voiding their own movements. ADMIN users can void any movement at any time, and a retried void with the same `Idempotency-Key` succeeds after the window has closed.
 - Treat the database URL as a secret: it contains the password. Never commit it.
 
 ## Local development
