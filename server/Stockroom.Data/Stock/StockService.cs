@@ -62,6 +62,41 @@ public sealed class StockService(StockroomDbContext db, ISettingsStore settings,
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Sets the quantity to <see cref="AdjustStock.TargetQuantity"/> and returns the <c>adjust</c> movement,
+    /// whose delta is the difference. Returns <see langword="null"/> and writes nothing when the quantity is
+    /// already the target.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The target quantity is negative.</exception>
+    /// <exception cref="StockConflictException">
+    /// The quantity is not <see cref="AdjustStock.ExpectedCurrent"/>; nothing is written.
+    /// </exception>
+    public Task<StockMovement?> AdjustAsync(AdjustStock request, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(request.TargetQuantity);
+
+        return InTransactionAsync<StockMovement?>(async () =>
+        {
+            // Locked, so the quantity compared and the delta computed still hold when the level is updated.
+            var current = await LockLevelAsync(request.ProductId, Location.MainStorageId, cancellationToken);
+            if (request.ExpectedCurrent is { } expected && expected != current)
+            {
+                throw new StockConflictException(expected, current);
+            }
+
+            var delta = request.TargetQuantity - current;
+            if (delta == 0)
+            {
+                return null;
+            }
+
+            var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, delta, cancellationToken);
+            return await AppendAsync(
+                request.ProductId, StockMovementType.Adjust, delta, quantityAfter,
+                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+        }, cancellationToken);
+    }
+
     /// <summary>Runs <paramref name="operation"/> in the caller's transaction, or in a new one it commits on success.</summary>
     private async Task<T> InTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
     {

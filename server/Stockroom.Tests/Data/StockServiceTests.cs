@@ -296,6 +296,145 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task AnAdjustSetsTheCountedQuantity()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 45, Actor.Id));
+        var request = new AdjustStock(product.Id, 42, Actor.Id)
+        {
+            ExpectedCurrent = 45,
+            Note = "Three missing",
+            Reference = "COUNT-2026-10",
+        };
+
+        var movement = await AdjustAsync(databaseUrl, request);
+
+        Assert.NotNull(movement);
+        Assert.Equal(42, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        var stored = await db.StockMovements.SingleAsync(m => m.PublicId == movement.PublicId, Token);
+        Assert.Equivalent(movement, stored, strict: true);
+        Assert.Equivalent(
+            new
+            {
+                ProductId = product.Id,
+                LocationId = Location.MainStorageId,
+                Type = StockMovementType.Adjust,
+                Delta = -3,
+                QuantityAfter = 42,
+                Reason = StockMovementReason.Count,
+                Note = "Three missing",
+                Reference = "COUNT-2026-10",
+                ActorId = Actor.Id,
+                CreatedAt = Now,
+            },
+            stored);
+    }
+
+    [Fact]
+    public async Task AnAdjustMayRaiseTheQuantity()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        var movement = await AdjustAsync(
+            databaseUrl, new AdjustStock(product.Id, 10, Actor.Id) { Reason = StockMovementReason.Found });
+
+        Assert.Equal((7, 10, StockMovementReason.Found), (movement!.Delta, movement.QuantityAfter, movement.Reason));
+        Assert.Equal(10, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AnAdjustMaySetTheQuantityToZero()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        var movement = await AdjustAsync(databaseUrl, new AdjustStock(product.Id, 0, Actor.Id) { ExpectedCurrent = 3 });
+
+        Assert.Equal((-3, 0), (movement!.Delta, movement.QuantityAfter));
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AProductThatNeverHadStockIsAdjustedFromZero()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+
+        var movement = await AdjustAsync(databaseUrl, new AdjustStock(product.Id, 5, Actor.Id) { ExpectedCurrent = 0 });
+
+        Assert.Equal((5, 5), (movement!.Delta, movement.QuantityAfter));
+        Assert.Equal(5, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task AnAdjustToTheCurrentQuantityWritesNothing()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 5, Actor.Id));
+
+        var movement = await AdjustAsync(databaseUrl, new AdjustStock(product.Id, 5, Actor.Id) { ExpectedCurrent = 5 });
+
+        Assert.Null(movement);
+        Assert.Equal(5, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(1, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task AStaleExpectedCurrentIsAConflict()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 45, Actor.Id));
+
+        // Someone else removes two units while the user is counting.
+        await IssueAsync(databaseUrl, new IssueStock(product.Id, 2, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<StockConflictException>(
+            () => AdjustAsync(databaseUrl, new AdjustStock(product.Id, 42, Actor.Id) { ExpectedCurrent = 45 }));
+
+        Assert.Equal((45, 43), (ex.Expected, ex.Current));
+        Assert.Equal(43, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(2, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task AStaleExpectedCurrentIsAConflictEvenWhenTheTargetIsAlreadyReached()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 42, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<StockConflictException>(
+            () => AdjustAsync(databaseUrl, new AdjustStock(product.Id, 42, Actor.Id) { ExpectedCurrent = 45 }));
+
+        Assert.Equal((45, 42), (ex.Expected, ex.Current));
+    }
+
+    [Fact]
+    public async Task WithoutAnExpectedCurrentTheQuantityIsNotChecked()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 45, Actor.Id));
+
+        var movement = await AdjustAsync(databaseUrl, new AdjustStock(product.Id, 40, Actor.Id));
+
+        Assert.Equal((-5, 40), (movement!.Delta, movement.QuantityAfter));
+    }
+
+    [Fact]
+    public async Task ANegativeTargetQuantityIsRejected()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => AdjustAsync(databaseUrl, new AdjustStock(product.Id, -1, Actor.Id)));
+
+        Assert.Equal(3, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
     public async Task TheApiProvidesTheService()
     {
         await using var factory = await StockroomApiFactory.CreateAsync(postgres);
@@ -325,6 +464,12 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     {
         await using var db = TestDatabase.CreateContext(databaseUrl);
         return await Service(db).IssueAsync(request, Token);
+    }
+
+    private static async Task<StockMovement?> AdjustAsync(string databaseUrl, AdjustStock request)
+    {
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        return await Service(db).AdjustAsync(request, Token);
     }
 
     private static async Task SetAllowNegativeStockAsync(string databaseUrl, bool allowed)
