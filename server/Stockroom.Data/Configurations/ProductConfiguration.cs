@@ -18,6 +18,10 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => p.Sku).IsUnique();
 
+        // For search by part of the name or SKU, ignoring case (ILIKE).
+        builder.HasIndex(p => p.Name, "ix_products_name_trgm").HasDatabaseName("ix_products_name_trgm").HasMethod("gin").HasOperators("gin_trgm_ops");
+        builder.HasIndex(p => p.Sku, "ix_products_sku_trgm").HasDatabaseName("ix_products_sku_trgm").HasMethod("gin").HasOperators("gin_trgm_ops");
+
         // Users are never deleted (P1 adds disabling instead), and history must keep its author.
         builder.HasOne<User>().WithMany().HasForeignKey(p => p.CreatedBy).OnDelete(DeleteBehavior.Restrict);
     }

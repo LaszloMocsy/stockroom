@@ -26,6 +26,7 @@ internal static class ProductEndpoints
 
     public const int DefaultPageSize = 50;
     public const int MaxPageSize = 100;
+    public const int MaxSearchLength = 200;
 
     public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -39,7 +40,9 @@ internal static class ProductEndpoints
             .WithDescription(string.Create(
                 CultureInfo.InvariantCulture,
                 $"""
-                Returns products sorted by `sort`: `name` (the default), `sku`, or `created_at`, with a leading `-` for descending, e.g. `-created_at` for newest first. Products that tie are ordered by ID. Pages hold up to `limit` products ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same `sort` for the next page, until it is `null`.
+                Returns products matching `q`, if given: those whose name, SKU, or any barcode contains it, ignoring case. A blank `q` matches everything.
+
+                Products are sorted by `sort`: `name` (the default), `sku`, or `created_at`, with a leading `-` for descending, e.g. `-created_at` for newest first. Products that tie are ordered by ID. Pages hold up to `limit` products ({DefaultPageSize} by default, at most {MaxPageSize}); pass `next_cursor` back as `cursor` with the same `q` and `sort` for the next page, until it is `null`.
                 """));
 
         products.MapPost("", CreateProductAsync)
@@ -66,6 +69,7 @@ internal static class ProductEndpoints
     }
 
     private static async Task<Results<Ok<ListResponse<ProductResponse>>, ProblemHttpResult>> ListProductsAsync(
+        [Description("Text to find in the name, SKU, or a barcode.")] string? q,
         [Description("`name`, `sku`, or `created_at`; a leading `-` sorts descending.")] string? sort,
         [Description("`next_cursor` from the previous page.")] string? cursor,
         [Description("Page size.")] int? limit,
@@ -73,6 +77,11 @@ internal static class ProductEndpoints
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        if (q?.Length > MaxSearchLength)
+        {
+            errors[nameof(q)] = [$"The search text can be at most {MaxSearchLength} characters."];
+        }
+
         var order = ProductSort.Default;
         if (sort is not null && !ProductSort.TryParse(sort, out order))
         {
@@ -102,9 +111,19 @@ internal static class ProductEndpoints
             return ApiResults.ValidationFailed(errors);
         }
 
+        var products = db.Products.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            // ILIKE with the trigram indexes; the text is matched literally, so % and _ are escaped.
+            var pattern = "%" + EscapeLikePattern(q.Trim()) + "%";
+            products = products.Where(p => EF.Functions.ILike(p.Name, pattern, LikeEscape)
+                || EF.Functions.ILike(p.Sku, pattern, LikeEscape)
+                || p.Barcodes.Any(b => EF.Functions.ILike(b.Barcode, pattern, LikeEscape)));
+        }
+
         // One extra row tells whether another page follows.
         var pageSize = limit ?? DefaultPageSize;
-        var items = await ProductResponse.Project(order.Apply(db.Products, after), db).Take(pageSize + 1).ToListAsync(cancellationToken);
+        var items = await ProductResponse.Project(order.Apply(products, after), db).Take(pageSize + 1).ToListAsync(cancellationToken);
         var nextCursor = items.Count > pageSize
             ? new ProductCursor(order, order.KeyOf(items[pageSize - 1]), items[pageSize - 1].Id).Encode()
             : null;
@@ -205,6 +224,13 @@ internal static class ProductEndpoints
         var response = await ProductResponse.Project(db.Products.Where(p => p.Id == product.Id), db).SingleAsync(cancellationToken);
         return TypedResults.Created($"/api/v1/products/{response.Id}", response);
     }
+
+    private const string LikeEscape = "\\";
+
+    private static string EscapeLikePattern(string text) =>
+        text.Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
+            .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
+            .Replace("_", LikeEscape + "_", StringComparison.Ordinal);
 
     /// <summary>
     /// A generated SKU that no product has. The sequence never repeats itself, but someone may have typed
