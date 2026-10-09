@@ -22,6 +22,7 @@ public sealed class OpenApiTests(StockroomApiFactory factory, PostgresFixture po
         Assert.StartsWith("3.1.", root.GetProperty("openapi").GetString(), StringComparison.Ordinal);
         Assert.Equal("Stockroom API", root.GetProperty("info").GetProperty("title").GetString());
         Assert.Equal("v1", root.GetProperty("info").GetProperty("version").GetString());
+        Assert.False(root.TryGetProperty("servers", out var servers) && servers.GetArrayLength() > 0, "The document must not depend on the request's host.");
 
         var healthz = root.GetProperty("paths").GetProperty("/healthz").GetProperty("get");
         Assert.Equal("GetHealthz", healthz.GetProperty("operationId").GetString());

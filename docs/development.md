@@ -11,17 +11,18 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 - [Seed development data](#seed-development-data)
 - [Run the tests](#run-the-tests)
 - [Change the database schema](#change-the-database-schema)
+- [Change the API](#change-the-api)
 - [Before you commit](#before-you-commit)
 - [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-| Tool                                     | Version                               | Used for                                                  |
-| ---------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
-| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                    |
-| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests        |
-| Node                                     | 24.19.x                               | Repository tooling (formatting); the apps, once they land |
-| pnpm                                     | 12.9.1, via Corepack                  | The same                                                  |
+| Tool                                     | Version                               | Used for                                                                  |
+| ---------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
+| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                                    |
+| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests                        |
+| Node                                     | 24.19.x                               | Repository tooling (formatting), the API client; the apps, once they land |
+| pnpm                                     | 12.9.1, via Corepack                  | The same                                                                  |
 
 The exact versions are pinned in the repository; see [Tool versions](../CONTRIBUTING.md#tool-versions). Commands below run from the repository root unless they start with `cd`.
 
@@ -30,7 +31,7 @@ The exact versions are pinned in the repository; see [Tool versions](../CONTRIBU
 ```sh
 nvm use                             # or any version manager that reads .nvmrc
 corepack enable                     # installs the pnpm version from package.json
-pnpm install                        # repository tooling (Prettier)
+pnpm install                        # repository tooling (Prettier) and the API client
 dotnet --version                    # should print the SDK pinned in global.json
 (cd server && dotnet tool restore)  # dotnet-ef, for migrations
 (cd server && dotnet build)
@@ -131,6 +132,13 @@ dotnet test --project Stockroom.Tests -- --filter-method '*Idempotent*'
 
 Tests are organised by layer: `Core` (pure unit tests), `Data` (EF Core and the stock ledger against PostgreSQL), and `Api` (HTTP endpoints, hosted in memory with `WebApplicationFactory`, and a few that start the API as a separate process).
 
+The TypeScript API client has its own unit tests, run with [Vitest](https://vitest.dev) against a mock `fetch`, so they need neither Docker nor a running API:
+
+```sh
+pnpm --filter api-client test
+pnpm --filter api-client typecheck   # also type-checks the tests against the generated types
+```
+
 ## Change the database schema
 
 Migrations live in `server/Stockroom.Data/Migrations` and are applied automatically when the API starts. After changing an entity or its configuration:
@@ -142,12 +150,33 @@ dotnet ef migrations add <Name> --project Stockroom.Data
 
 Adding a migration does not need a database. Commit the generated files, including the updated model snapshot, together with the change. Migrations are forward-only once released: a server refuses to start against a database migrated by a newer version.
 
+## Change the API
+
+The API contract is committed as [`server/openapi/openapi.v1.json`](../server/openapi/openapi.v1.json), and the TypeScript client is generated from it. `OpenApiSnapshotTests` fails whenever the document the API serves differs from that file, so every change to an endpoint, request, or response has to update it. After an intended change, regenerate it:
+
+```sh
+cd server
+UPDATE_OPENAPI_SNAPSHOT=1 dotnet test --project Stockroom.Tests -- --filter-class '*OpenApiSnapshotTests'
+```
+
+Review the diff and commit the snapshot together with the change. Then rebuild the TypeScript client, [`packages/api-client`](../packages/api-client), which generates its types from the snapshot at build time; the generated files are not committed:
+
+```sh
+pnpm --filter api-client build
+```
+
+CI does the same on every pull request: it fails if the snapshot is stale, and it fails if the snapshot drops or changes something the client uses, because the client then no longer compiles.
+
+Within `/api/v1`, changes must be additive: new endpoints and fields are fine, but removing or changing existing ones needs `/api/v2` (see the [specification](../SPECIFICATION.md#101-version-compatibility)).
+
 ## Before you commit
 
 ```sh
 pnpm format:check              # Prettier, as in CI; `pnpm format` fixes it
 (cd server && dotnet build)    # warnings and code-style violations fail the build
 (cd server && dotnet test)
+pnpm --filter api-client typecheck
+pnpm --filter api-client test
 ```
 
 ## Troubleshooting

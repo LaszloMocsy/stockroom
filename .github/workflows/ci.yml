@@ -38,6 +38,32 @@ jobs:
 
       - run: pnpm format:check
 
+  api-client:
+    name: API client
+    # Builds the TypeScript client from the committed OpenAPI snapshot
+    # (server/openapi/openapi.v1.json). The server job fails if the snapshot
+    # is stale; this job fails if the snapshot drops or changes something
+    # the client uses, because the client's types no longer compile.
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Type-checks the sources and the tests against the generated types.
+      - run: pnpm --filter api-client typecheck
+
+      - run: pnpm --filter api-client test
+
+      - run: pnpm --filter api-client build
+
   server:
     name: .NET build and test
     # A full VM: the integration tests start PostgreSQL in Docker through
