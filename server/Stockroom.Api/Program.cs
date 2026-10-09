@@ -42,7 +42,10 @@ try
     v1.MapAuthEndpoints();
     v1.MapMeEndpoints();
     v1.MapUserEndpoints();
+    v1.MapProductEndpoints();
     v1.MapStockMovementEndpoints();
+    v1.MapStatsEndpoints();
+    v1.MapExportEndpoints();
 
     await app.RunAsync();
     return 0;

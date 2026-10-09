@@ -57,6 +57,19 @@ public sealed class OpenApiTests(StockroomApiFactory factory, PostgresFixture po
     }
 
     [Fact]
+    public async Task TheProductPatchListsOnlyEditableFields()
+    {
+        using var client = factory.CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/api/v1/openapi.json", UriKind.Relative), Token));
+        var schema = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("UpdateProductRequest");
+
+        // Presence flags and the catch-all for rejected fields such as sku are implementation details.
+        Assert.Equal(["name", "description", "min_stock"], schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
+        Assert.False(schema.TryGetProperty("additionalProperties", out var additional) && additional.ValueKind != JsonValueKind.False, schema.ToString());
+    }
+
+    [Fact]
     public async Task DocumentationEndpointsAreNotPartOfTheDocument()
     {
         using var client = factory.CreateClient();

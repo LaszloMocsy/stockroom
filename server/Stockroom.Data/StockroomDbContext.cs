@@ -57,6 +57,8 @@ public sealed class StockroomDbContext(DbContextOptions<StockroomDbContext> opti
         modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("user_tokens");
         modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claims");
 
+        // Trigram indexes make substring search (ILIKE '%…%') on products fast (spec 4.1).
+        modelBuilder.HasPostgresExtension("pg_trgm");
         modelBuilder.HasSequence<long>(SkuGenerator.SequenceName);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StockroomDbContext).Assembly);
 

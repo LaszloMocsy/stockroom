@@ -15,6 +15,9 @@ internal sealed class ProductBarcodeConfiguration : IEntityTypeConfiguration<Pro
         // Unique across all products, so a scan resolves to at most one product.
         builder.HasIndex(b => b.Barcode).IsUnique();
 
+        // For search by part of a barcode (ILIKE).
+        builder.HasIndex(b => b.Barcode, "ix_product_barcodes_barcode_trgm").HasDatabaseName("ix_product_barcodes_barcode_trgm").HasMethod("gin").HasOperators("gin_trgm_ops");
+
         builder.HasOne<Product>()
             .WithMany(p => p.Barcodes)
             .HasForeignKey(b => b.ProductId)
