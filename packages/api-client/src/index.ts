@@ -10,6 +10,12 @@ export {
   type TokenRefreshOptions,
   type TokenResponse,
 } from "./client.js";
+export {
+  checkCompatibility,
+  RequiredApiVersion,
+  type Compatibility,
+  type InfoResponse,
+} from "./compatibility.js";
 
 /** A schema from the API contract by name, for example `Schema<"ProductResponse">`. */
 export type Schema<Name extends keyof components["schemas"]> =

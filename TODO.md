@@ -151,7 +151,7 @@ _Spec: 9.1, 10.1, D8._
 - [x] **H2** — Create `packages/api-client` with type generation (openapi-typescript) from the committed snapshot at build time, and a typed fetch wrapper. Generated files are git-ignored. _Done when:_ `pnpm --filter api-client build` produces types from the snapshot and `git status` stays clean afterwards.
 - [x] **H3** — Add middleware to the client for the base URL, bearer token injection, and `X-Client-Version` / `X-Client-Platform` headers. _Done when:_ unit tested with a mock fetch.
 - [x] **H4** — Add automatic token refresh with a single in-flight refresh and a retry of the original request. _Done when:_ concurrent 401s trigger one refresh; unit tested.
-- [ ] **H5** — Add a client helper `checkCompatibility(info, clientVersion)` returning `ok`, `app_outdated`, or `server_outdated`. _Done when:_ unit tested for all three outcomes.
+- [x] **H5** — Add a client helper `checkCompatibility(info, clientVersion)` returning `ok`, `app_outdated`, or `server_outdated`. _Done when:_ unit tested for all three outcomes.
 - [ ] **H6** — Add CI steps that build `packages/api-client` from the committed snapshot, so a snapshot change that breaks the client's types fails CI. _Done when:_ CI is green on a clean tree and fails when the snapshot removes something the client uses.
 
 ## I. Mobile app (Expo)
