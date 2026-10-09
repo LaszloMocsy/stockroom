@@ -19,40 +19,71 @@ public sealed class StockService(StockroomDbContext db, IIdGenerator ids, TimePr
 {
     /// <summary>Adds <see cref="ReceiveStock.Quantity"/> units and returns the <c>receive</c> movement.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
-    public async Task<StockMovement> ReceiveAsync(ReceiveStock request, CancellationToken cancellationToken)
+    public Task<StockMovement> ReceiveAsync(ReceiveStock request, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(request.Quantity);
 
-        await using var transaction = db.Database.CurrentTransaction is null
-            ? await db.Database.BeginTransactionAsync(cancellationToken)
-            : null;
-
-        var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, request.Quantity, cancellationToken);
-        var movement = new StockMovement
+        return InTransactionAsync(async () =>
         {
-            Id = ids.NewInternalId(),
-            PublicId = ids.NewPublicId(),
-            ProductId = request.ProductId,
-            LocationId = Location.MainStorageId,
-            Type = StockMovementType.Receive,
-            Delta = request.Quantity,
-            QuantityAfter = quantityAfter,
-            Reason = request.Reason,
-            Note = request.Note,
-            Reference = request.Reference,
-            ActorId = request.ActorId,
-            CreatedAt = time.GetUtcNow(),
-        };
-        db.StockMovements.Add(movement);
-        await db.SaveChangesAsync(cancellationToken);
+            var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, request.Quantity, cancellationToken);
+            return await AppendAsync(
+                request.ProductId, StockMovementType.Receive, request.Quantity, quantityAfter,
+                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+        }, cancellationToken);
+    }
 
-        if (transaction is not null)
+    /// <summary>Removes <see cref="IssueStock.Quantity"/> units and returns the <c>issue</c> movement.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The quantity is not positive.</exception>
+    /// <exception cref="InsufficientStockException">Fewer units are on hand than requested; nothing is written.</exception>
+    public Task<StockMovement> IssueAsync(IssueStock request, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(request.Quantity);
+
+        return InTransactionAsync(async () =>
         {
-            await transaction.CommitAsync(cancellationToken);
+            // The lock holds off concurrent movements until this transaction ends, so the quantity checked
+            // is still the quantity when the level is updated, and parallel issues cannot oversell.
+            var available = await LockLevelAsync(request.ProductId, Location.MainStorageId, cancellationToken);
+            if (available < request.Quantity)
+            {
+                throw new InsufficientStockException(request.Quantity, available);
+            }
+
+            var quantityAfter = await AddToLevelAsync(request.ProductId, Location.MainStorageId, -request.Quantity, cancellationToken);
+            return await AppendAsync(
+                request.ProductId, StockMovementType.Issue, -request.Quantity, quantityAfter,
+                request.Reason, request.Note, request.Reference, request.ActorId, cancellationToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>Runs <paramref name="operation"/> in the caller's transaction, or in a new one it commits on success.</summary>
+    private async Task<T> InTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            return await operation();
         }
 
-        return movement;
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var result = await operation();
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
+
+    /// <summary>
+    /// Locks the level row until the transaction ends and returns its quantity: 0 if the product has never
+    /// had stock at the location, in which case there is no row to lock.
+    /// </summary>
+    private async Task<int> LockLevelAsync(Guid productId, Guid locationId, CancellationToken cancellationToken) =>
+        (await db.Database
+            .SqlQuery<int>(
+                $"""
+                SELECT quantity AS "Value" FROM stock_levels
+                WHERE product_id = {productId} AND location_id = {locationId}
+                FOR UPDATE
+                """)
+            .ToListAsync(cancellationToken))
+            .SingleOrDefault();
 
     /// <summary>
     /// Adds <paramref name="delta"/> to the level, creating the row on the first movement, and returns the
@@ -70,4 +101,35 @@ public sealed class StockService(StockroomDbContext db, IIdGenerator ids, TimePr
                 """)
             .ToListAsync(cancellationToken))
             .Single();
+
+    private async Task<StockMovement> AppendAsync(
+        Guid productId,
+        StockMovementType type,
+        int delta,
+        int quantityAfter,
+        StockMovementReason reason,
+        string? note,
+        string? reference,
+        Guid actorId,
+        CancellationToken cancellationToken)
+    {
+        var movement = new StockMovement
+        {
+            Id = ids.NewInternalId(),
+            PublicId = ids.NewPublicId(),
+            ProductId = productId,
+            LocationId = Location.MainStorageId,
+            Type = type,
+            Delta = delta,
+            QuantityAfter = quantityAfter,
+            Reason = reason,
+            Note = note,
+            Reference = reference,
+            ActorId = actorId,
+            CreatedAt = time.GetUtcNow(),
+        };
+        db.StockMovements.Add(movement);
+        await db.SaveChangesAsync(cancellationToken);
+        return movement;
+    }
 }

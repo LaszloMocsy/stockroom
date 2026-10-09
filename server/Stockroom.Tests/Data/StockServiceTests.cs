@@ -84,7 +84,7 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task TheReasonDefaultsToPurchase()
+    public async Task TheReceiveReasonDefaultsToPurchase()
     {
         var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
 
@@ -96,7 +96,7 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     [Theory]
     [InlineData(0)]
     [InlineData(-4)]
-    public async Task AQuantityThatIsNotPositiveIsRejected(int quantity)
+    public async Task AReceiveQuantityThatIsNotPositiveIsRejected(int quantity)
     {
         var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
 
@@ -156,6 +156,105 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task AnIssueRemovesStock()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 12, Actor.Id));
+        var request = new IssueStock(product.Id, 5, Actor.Id)
+        {
+            Reason = StockMovementReason.Damaged,
+            Note = "Dropped",
+            Reference = "INC-7",
+        };
+
+        var movement = await IssueAsync(databaseUrl, request);
+
+        Assert.Equal(7, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        var stored = await db.StockMovements.SingleAsync(m => m.PublicId == movement.PublicId, Token);
+        Assert.Equivalent(movement, stored, strict: true);
+        Assert.Equivalent(
+            new
+            {
+                ProductId = product.Id,
+                LocationId = Location.MainStorageId,
+                Type = StockMovementType.Issue,
+                Delta = -5,
+                QuantityAfter = 7,
+                Reason = StockMovementReason.Damaged,
+                Note = "Dropped",
+                Reference = "INC-7",
+                ActorId = Actor.Id,
+                CreatedAt = Now,
+            },
+            stored);
+    }
+
+    [Fact]
+    public async Task AnIssueMayTakeTheLastUnit()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        var movement = await IssueAsync(databaseUrl, new IssueStock(product.Id, 3, Actor.Id));
+
+        Assert.Equal(0, movement.QuantityAfter);
+        Assert.Equal(0, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
+    public async Task TheIssueReasonDefaultsToSale()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 1, Actor.Id));
+
+        var movement = await IssueAsync(databaseUrl, new IssueStock(product.Id, 1, Actor.Id));
+
+        Assert.Equal(StockMovementReason.Sale, movement.Reason);
+    }
+
+    [Fact]
+    public async Task IssuingMoreThanIsOnHandIsRejected()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        var ex = await Assert.ThrowsAsync<InsufficientStockException>(
+            () => IssueAsync(databaseUrl, new IssueStock(product.Id, 4, Actor.Id)));
+
+        Assert.Equal((4, 3), (ex.Requested, ex.Available));
+        Assert.Equal(3, await QuantityAsync(databaseUrl, product));
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        Assert.Equal(1, await db.StockMovements.CountAsync(Token));
+    }
+
+    [Fact]
+    public async Task IssuingAProductThatNeverHadStockIsRejected()
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+
+        var ex = await Assert.ThrowsAsync<InsufficientStockException>(
+            () => IssueAsync(databaseUrl, new IssueStock(product.Id, 1, Actor.Id)));
+
+        Assert.Equal((1, 0), (ex.Requested, ex.Available));
+        await AssertNothingWrittenAsync(databaseUrl);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-4)]
+    public async Task AnIssueQuantityThatIsNotPositiveIsRejected(int quantity)
+    {
+        var (databaseUrl, product) = await CreateDatabaseWithProductAsync();
+        await ReceiveAsync(databaseUrl, new ReceiveStock(product.Id, 3, Actor.Id));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => IssueAsync(databaseUrl, new IssueStock(product.Id, quantity, Actor.Id)));
+
+        Assert.Equal(3, await QuantityAsync(databaseUrl, product));
+    }
+
+    [Fact]
     public async Task TheApiProvidesTheService()
     {
         await using var factory = await StockroomApiFactory.CreateAsync(postgres);
@@ -179,6 +278,12 @@ public sealed class StockServiceTests(PostgresFixture postgres)
     {
         await using var db = TestDatabase.CreateContext(databaseUrl);
         return await Service(db).ReceiveAsync(request, Token);
+    }
+
+    private static async Task<StockMovement> IssueAsync(string databaseUrl, IssueStock request)
+    {
+        await using var db = TestDatabase.CreateContext(databaseUrl);
+        return await Service(db).IssueAsync(request, Token);
     }
 
     private static async Task<int> QuantityAsync(string databaseUrl, Product product)

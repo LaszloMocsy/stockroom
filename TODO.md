@@ -104,7 +104,7 @@ _Spec: 2, 4.7, 10.2, 11._
 _Spec: 3.1, 3.2, 4.2, 10. Only `StockService` may write stock levels._
 
 - [x] **E1** — Create `StockService` with `Receive` (adds stock, writes movement and updates level in one transaction). _Done when:_ tests cover new and existing stock level rows and `quantity_after`.
-- [ ] **E2** — Add `Issue` rejecting insufficient stock using a guarded update or row lock. _Done when:_ tests cover success and an `InsufficientStock` error.
+- [x] **E2** — Add `Issue` rejecting insufficient stock using a guarded update or row lock. _Done when:_ tests cover success and an `InsufficientStock` error.
 - [ ] **E3** — Honour the `allow_negative_stock` setting in `Issue`. _Done when:_ both setting values are tested.
 - [ ] **E4** — Add `Adjust` to a `target_quantity` computing the delta, with `expected_current` conflict detection. _Done when:_ tests cover success, no-op, and a stale `expected_current` returning a conflict.
 - [ ] **E5** — Record an `initial` movement through the service when a product is created with a starting quantity. _Done when:_ tested via the service API.
