@@ -132,7 +132,7 @@ _Spec: 3.1, 4.1, 4.6, 7.1, 10._
 - [x] **F8** — Add `POST /api/v1/products/:id/barcodes` and `DELETE …/barcodes/:barcode`. _Done when:_ duplicate and last-barcode cases are tested.
 - [x] **F9** — Add `GET /api/v1/products/lookup?barcode=|sku=`. _Done when:_ found, not found, and archived cases are tested.
 - [x] **F10** — Add `GET /api/v1/stats/summary` (total products, total units, low-stock count, out-of-stock count, last 10 movements). _Done when:_ tested against seeded data.
-- [ ] **F11** — Add `GET /api/v1/export/products.csv` (SKU, name, barcodes, quantity, min stock). _Done when:_ output is valid CSV with escaping, tested.
+- [x] **F11** — Add `GET /api/v1/export/products.csv` (SKU, name, barcodes, quantity, min stock). _Done when:_ output is valid CSV with escaping, tested.
 
 ## G. Developer experience
 
