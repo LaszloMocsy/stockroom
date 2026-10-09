@@ -2,7 +2,7 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.7                                              |
+| **Status**  | Draft v0.8                                              |
 | **Date**    | 2026-10-09                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
@@ -92,21 +92,21 @@ Products also have **external identifiers** that people and scanners use: the `s
 
 #### Product
 
-| Field                                    | Type                | Stage | Notes                                                                                 |
-| ---------------------------------------- | ------------------- | :---: | ------------------------------------------------------------------------------------- |
-| `id`                                     | UUID (v7)           |  MVP  | Internal primary key. Never exposed.                                                  |
-| `public_id`                              | UUID (v4), unique   |  MVP  | Public ID used in the API.                                                            |
-| `sku`                                    | string, unique      |  MVP  | Human-readable ID. Auto-generated if omitted (e.g. `SR-000123`).                      |
-| `name`                                   | string, required    |  MVP  |                                                                                       |
-| `description`                            | text, nullable      |  MVP  |                                                                                       |
-| `barcodes`                               | child table         |  MVP  | One or more EAN/UPC/Code128/QR payloads per product; each unique across all products. |
-| `min_stock`                              | integer, nullable   |  MVP  | Low-stock threshold.                                                                  |
-| `archived_at`                            | timestamp, nullable |  MVP  | Soft delete.                                                                          |
-| `created_at`, `updated_at`, `created_by` |                     |  MVP  |                                                                                       |
-| `category_id`, `tags`                    |                     |  P1   |                                                                                       |
-| `unit_cost`                              | decimal, nullable   |  P1   | Enables stock valuation.                                                              |
-| `image`                                  | object storage key  |  P1   | See [Section 9.4](#94-object-storage).                                                |
-| `unit`, `custom_fields`                  |                     |  P2   | Units of measure are deferred; every quantity is a whole count for now.               |
+| Field                                    | Type                | Stage | Notes                                                                                  |
+| ---------------------------------------- | ------------------- | :---: | -------------------------------------------------------------------------------------- |
+| `id`                                     | UUID (v7)           |  MVP  | Internal primary key. Never exposed.                                                   |
+| `public_id`                              | UUID (v4), unique   |  MVP  | Public ID used in the API.                                                             |
+| `sku`                                    | string, unique      |  MVP  | Human-readable ID. Auto-generated if omitted (e.g. `SR-000123`).                       |
+| `name`                                   | string, required    |  MVP  |                                                                                        |
+| `description`                            | text, nullable      |  MVP  |                                                                                        |
+| `barcodes`                               | child table         |  MVP  | Zero or more EAN/UPC/Code128/QR payloads per product; each unique across all products. |
+| `min_stock`                              | integer, nullable   |  MVP  | Low-stock threshold.                                                                   |
+| `archived_at`                            | timestamp, nullable |  MVP  | Soft delete.                                                                           |
+| `created_at`, `updated_at`, `created_by` |                     |  MVP  |                                                                                        |
+| `category_id`, `tags`                    |                     |  P1   |                                                                                        |
+| `unit_cost`                              | decimal, nullable   |  P1   | Enables stock valuation.                                                               |
+| `image`                                  | object storage key  |  P1   | See [Section 9.4](#94-object-storage).                                                 |
+| `unit`, `custom_fields`                  |                     |  P2   | Units of measure are deferred; every quantity is a whole count for now.                |
 
 **Location** (P1) — a place in the storage (e.g. _Aisle 3 / Shelf B_), hierarchical. The schema includes a single built-in default location (`Main storage`) from day one so multi-location support is a non-breaking addition: `stock_levels` and `movements` already carry a `location_id`.
 
@@ -609,6 +609,10 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.8 — 2026-10-09
+
+- **Barcodes:** a product has zero or more barcodes, not one or more: a product can be created without one, and its last barcode can be removed (section 3.1).
 
 ### v0.7 — 2026-10-09
 

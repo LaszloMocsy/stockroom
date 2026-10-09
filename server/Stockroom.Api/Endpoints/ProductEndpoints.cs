@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,9 @@ internal static class ProductEndpoints
     public const int DefaultPageSize = 50;
     public const int MaxPageSize = 100;
     public const int MaxSearchLength = 200;
+
+    /// <summary>Long enough for QR payloads, short enough for the unique index (PostgreSQL limits B-tree entries to about 2.7 kB).</summary>
+    public const int MaxBarcodeLength = 512;
 
     public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -100,6 +104,27 @@ internal static class ProductEndpoints
             .WithName("RestoreProduct")
             .WithSummary("Restore an archived product")
             .WithDescription("Makes the archived product `id` active again and returns it. ADMIN only. Restoring an active product changes nothing.");
+
+        products.MapPost("/{id:guid}/barcodes", AddBarcodeAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .Produces<ErrorResponse>(StatusCodes.Status409Conflict)
+            .WithName("AddProductBarcode")
+            .WithSummary("Attach a barcode to a product")
+            .WithDescription($"""
+                Attaches `barcode`, stored exactly as given, to the product `id` and returns the product. Adding a barcode the product already has changes nothing.
+
+                A barcode identifies at most one product: one that another product has returns 409 with `{BarcodeTaken}`, and `details.product_id` is that product's ID.
+                """);
+
+        // A catch-all, so barcodes containing "/" (QR payloads are often URLs) match too; see BarcodeFromPath.
+        products.MapDelete("/{id:guid}/barcodes/{**barcode}", RemoveBarcodeAsync)
+            .Produces<ErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorResponse>(StatusCodes.Status404NotFound)
+            .WithName("RemoveProductBarcode")
+            .WithSummary("Detach a barcode from a product")
+            .WithDescription("Removes `barcode` from the product `id` and returns the product. Encode the barcode as a single path segment (e.g. with `encodeURIComponent`), so that `/`, `?`, and `%` in it survive. A product may be left without barcodes. A barcode the product does not have returns 404.");
         return endpoints;
     }
 
@@ -264,6 +289,98 @@ internal static class ProductEndpoints
         return await GetProductAsync(id, db, cancellationToken);
     }
 
+    private static async Task<Results<Created<ProductResponse>, ProblemHttpResult>> AddBarcodeAsync(
+        [Description("Public ID of the product.")] Guid id,
+        AddBarcodeRequest request,
+        StockroomDbContext db,
+        IIdGenerator ids,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Barcode))
+        {
+            return ApiResults.ValidationFailed(new Dictionary<string, string[]> { [nameof(request.Barcode)] = ["The barcode cannot be blank."] });
+        }
+
+        var product = await db.Products.SingleOrDefaultAsync(p => p.PublicId == id, cancellationToken);
+        if (product is null)
+        {
+            return ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no product with this ID.");
+        }
+
+        if (!await db.ProductBarcodes.AnyAsync(b => b.ProductId == product.Id && b.Barcode == request.Barcode, cancellationToken))
+        {
+            db.ProductBarcodes.Add(new ProductBarcode { Id = ids.NewInternalId(), ProductId = product.Id, Barcode = request.Barcode });
+            product.UpdatedAt = time.GetUtcNow();
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex, BarcodeIndex))
+            {
+                // A concurrent request may have attached it to this same product, which is what was asked for.
+                var owner = await BarcodeOwnerAsync(db, request.Barcode, cancellationToken);
+                if (owner != id)
+                {
+                    return BarcodeTakenError(request.Barcode, owner);
+                }
+            }
+        }
+
+        // No Location header: barcodes are read as part of their product.
+        var response = await ProductResponse.Project(db.Products.Where(p => p.Id == product.Id), db).SingleAsync(cancellationToken);
+        return TypedResults.Created((string?)null, response);
+    }
+
+    private static async Task<Results<Ok<ProductResponse>, ProblemHttpResult>> RemoveBarcodeAsync(
+        [Description("Public ID of the product.")] Guid id,
+        [Description("The barcode, encoded as one path segment.")] string barcode,
+        HttpContext context,
+        StockroomDbContext db,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        barcode = BarcodeFromPath(context, barcode);
+        var productId = await db.Products.Where(p => p.PublicId == id).Select(p => (Guid?)p.Id).SingleOrDefaultAsync(cancellationToken);
+        if (productId is null)
+        {
+            return ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "There is no product with this ID.");
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var removed = await db.ProductBarcodes
+            .Where(b => b.ProductId == productId && b.Barcode == barcode)
+            .ExecuteDeleteAsync(cancellationToken);
+        if (removed == 0)
+        {
+            return ApiResults.Error(StatusCodes.Status404NotFound, ErrorCodes.NotFound, "The product has no such barcode.");
+        }
+
+        var now = time.GetUtcNow();
+        await db.Products.Where(p => p.Id == productId).ExecuteUpdateAsync(set => set.SetProperty(p => p.UpdatedAt, now), cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return await GetProductAsync(id, db, cancellationToken);
+    }
+
+    /// <summary>
+    /// The barcode as the client encoded it, decoded exactly once. The <paramref name="routed"/> value is not quite
+    /// that: the server decodes every escape except <c>%2F</c>, which it leaves encoded to keep path segments apart,
+    /// so a barcode with a "/" arrives with "%2F" in it. Kestrel keeps the raw path, which is decoded here instead.
+    /// Hosts without it (the in-memory test server) get <c>%2F</c> turned back into "/", which is wrong only for a
+    /// barcode that contains "%2F" itself.
+    /// </summary>
+    private static string BarcodeFromPath(HttpContext context, string routed)
+    {
+        var target = context.Features.Get<IHttpRequestFeature>()?.RawTarget;
+        const string segment = "/barcodes/";
+        var path = target?.Split('?', 2)[0];
+        var start = path?.IndexOf(segment, StringComparison.OrdinalIgnoreCase) ?? -1;
+        return start >= 0
+            ? Uri.UnescapeDataString(path![(start + segment.Length)..])
+            : routed.Replace("%2F", "/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<Results<Created<ProductResponse>, ProblemHttpResult>> CreateProductAsync(
         CreateProductRequest request,
         ClaimsPrincipal principal,
@@ -312,28 +429,17 @@ internal static class ProductEndpoints
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } unique
-            && unique.ConstraintName is SkuIndex or BarcodeIndex)
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, SkuIndex) || IsUniqueViolation(ex, BarcodeIndex))
         {
             // The failed insert aborted the transaction; the owner is looked up outside it.
             await transaction.RollbackAsync(cancellationToken);
-            return unique.ConstraintName == SkuIndex
+            return IsUniqueViolation(ex, SkuIndex)
                 ? ApiResults.Error(
                     StatusCodes.Status409Conflict,
                     SkuTaken,
                     $"Another product already has the SKU {product.Sku}.",
                     new { product.Sku, ProductId = await OwnerAsync(db.Products.Where(p => p.Sku == product.Sku), cancellationToken) })
-                : ApiResults.Error(
-                    StatusCodes.Status409Conflict,
-                    BarcodeTaken,
-                    $"Another product already has the barcode {request.Barcode}.",
-                    new
-                    {
-                        request.Barcode,
-                        ProductId = await OwnerAsync(
-                            db.Products.Where(p => p.Barcodes.Any(b => b.Barcode == request.Barcode)),
-                            cancellationToken),
-                    });
+                : BarcodeTakenError(request.Barcode!, await BarcodeOwnerAsync(db, request.Barcode!, cancellationToken));
         }
 
         if (request.InitialQuantity is > 0)
@@ -376,6 +482,20 @@ internal static class ProductEndpoints
     /// </summary>
     private static Task<Guid?> OwnerAsync(IQueryable<Product> owners, CancellationToken cancellationToken) =>
         owners.Select(p => (Guid?)p.PublicId).SingleOrDefaultAsync(cancellationToken);
+
+    /// <summary>The public ID of the product that has <paramref name="barcode"/>, if any.</summary>
+    private static Task<Guid?> BarcodeOwnerAsync(StockroomDbContext db, string barcode, CancellationToken cancellationToken) =>
+        OwnerAsync(db.Products.Where(p => p.Barcodes.Any(b => b.Barcode == barcode)), cancellationToken);
+
+    private static ProblemHttpResult BarcodeTakenError(string barcode, Guid? owner) =>
+        ApiResults.Error(
+            StatusCodes.Status409Conflict,
+            BarcodeTaken,
+            $"Another product already has the barcode {barcode}.",
+            new { Barcode = barcode, ProductId = owner });
+
+    private static bool IsUniqueViolation(DbUpdateException ex, string index) =>
+        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } unique && unique.ConstraintName == index;
 
     /// <summary>Blank text, which DataAnnotations would only catch by also making optional fields required.</summary>
     private static ProblemHttpResult? Validate(CreateProductRequest request)
@@ -432,8 +552,7 @@ public sealed record CreateProductRequest(
     [property: StringLength(64)] string? Sku = null,
     [property: StringLength(2000)] string? Description = null,
     [property: Range(0, StockMovementEndpoints.MaxQuantity)] int? MinStock = null,
-    // Long enough for QR payloads, short enough for the unique index (PostgreSQL limits B-tree entries to about 2.7 kB).
-    [property: StringLength(512)] string? Barcode = null,
+    [property: StringLength(ProductEndpoints.MaxBarcodeLength)] string? Barcode = null,
     [property: Range(0, StockMovementEndpoints.MaxQuantity)] int? InitialQuantity = null);
 
 /// <summary>
@@ -483,3 +602,7 @@ public sealed class UpdateProductRequest
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnknownFields { get; init; }
 }
+
+/// <summary>Request body for <c>POST /api/v1/products/{id}/barcodes</c>.</summary>
+/// <param name="Barcode">The scanned payload, stored exactly as given.</param>
+public sealed record AddBarcodeRequest([property: Required, StringLength(ProductEndpoints.MaxBarcodeLength)] string Barcode);
