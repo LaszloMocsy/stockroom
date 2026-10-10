@@ -20,6 +20,7 @@ interface ApiContextValue {
   client: ApiClient | null;
   saveServerUrl: (url: string) => Promise<void>;
   saveTokens: (tokens: StoredTokens) => Promise<void>;
+  signedIn: boolean;
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null);
@@ -31,12 +32,14 @@ export interface ApiProviderProps {
 
 /**
  * Provides an API client for the stored server and a TanStack Query cache for it. Renders nothing until
- * it has read the stored server URL. The client sends the access token saved with `useSaveTokens`.
+ * it has read the stored server URL. The client sends the access token saved with `useSaveTokens`, which
+ * also signs the user in.
  */
 export function ApiProvider({ storage, children }: ApiProviderProps) {
   // Undefined while the stored URL is being read.
   const [serverUrl, setServerUrl] = useState<string | null>();
   const [session] = useState(createSessionTokens);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -66,31 +69,41 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
     async (newTokens: StoredTokens) => {
       await storage.setTokens(newTokens);
       session.set(newTokens);
+      setSignedIn(true);
     },
     [storage, session],
   );
 
-  // A new cache for each server, so one server's data never shows for another.
+  // A client and a new cache for each server, so one server's data never shows for another.
   const api = useMemo(
     () =>
       serverUrl === undefined
         ? null
         : {
-            context: {
-              serverUrl,
-              client:
-                serverUrl === null
-                  ? null
-                  : createClient({
-                      baseUrl: serverUrl,
-                      getAccessToken: () => session.get()?.accessToken,
-                    }),
-              saveServerUrl,
-              saveTokens,
-            },
+            client:
+              serverUrl === null
+                ? null
+                : createClient({
+                    baseUrl: serverUrl,
+                    getAccessToken: () => session.get()?.accessToken,
+                  }),
             queryClient: createQueryClient(),
           },
-    [serverUrl, saveServerUrl, saveTokens, session],
+    [serverUrl, session],
+  );
+
+  const context = useMemo(
+    () =>
+      serverUrl === undefined || !api
+        ? null
+        : {
+            serverUrl,
+            client: api.client,
+            saveServerUrl,
+            saveTokens,
+            signedIn,
+          },
+    [serverUrl, api, saveServerUrl, saveTokens, signedIn],
   );
 
   // Drops a cache as soon as it is replaced or unmounted, rather than leaving its queries and mutations
@@ -112,11 +125,11 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
     [queryClient],
   );
 
-  if (!api) {
+  if (!api || !context) {
     return null;
   }
   return (
-    <ApiContext value={api.context}>
+    <ApiContext value={context}>
       <QueryClientProvider client={api.queryClient}>
         {children}
       </QueryClientProvider>
@@ -145,6 +158,11 @@ function useApiContext(): ApiContextValue {
     throw new Error("Use the API hooks inside an ApiProvider.");
   }
   return context;
+}
+
+/** Whether the user has signed in to the current server. */
+export function useSignedIn(): boolean {
+  return useApiContext().signedIn;
 }
 
 /** The URL of the server the app talks to, or null when there is none yet. */

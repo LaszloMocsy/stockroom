@@ -30,6 +30,27 @@ export const en = {
       saveFailed: "The server address could not be saved. Try again.",
     },
   },
+  login: {
+    title: "Sign in",
+    intro: "Sign in to {{serverUrl}}.",
+    usernameLabel: "Username",
+    passwordLabel: "Password",
+    submit: "Sign in",
+    submitting: "Signing in…",
+    errors: {
+      required: "This is required.",
+      invalidCredentials: "The username or password is wrong.",
+      lockedOut_one: "Too many wrong passwords. Try again in {{count}} minute.",
+      lockedOut_other:
+        "Too many wrong passwords. Try again in {{count}} minutes.",
+      rateLimited_one: "Too many attempts. Try again in {{count}} minute.",
+      rateLimited_other: "Too many attempts. Try again in {{count}} minutes.",
+      serverError:
+        "The server could not sign you in (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   setup: {
     title: "Set up Stockroom",
     intro:

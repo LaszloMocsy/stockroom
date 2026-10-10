@@ -12,6 +12,7 @@ import { Text } from "react-native";
 import { clientVersion } from "@/api/client";
 import { ApiProvider } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
+import LoginScreen from "@/app/login";
 import SetupScreen from "@/app/setup";
 import UpdateRequiredScreen from "@/app/update-required";
 import { MemoryStore } from "@/storage/memory-store";
@@ -46,7 +47,7 @@ afterEach(() => {
 });
 
 /**
- * Renders the app's routes, with the real root stack and Connect screen and a stand-in home screen, and
+ * Renders the app's routes, with the real root stack and screens and a stand-in home screen, and
  * returns a function for the current path.
  */
 async function renderApp(): Promise<() => string> {
@@ -60,10 +61,11 @@ async function renderApp(): Promise<() => string> {
     connect: ConnectScreen,
     "update-required": UpdateRequiredScreen,
     setup: SetupScreen,
+    login: LoginScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
-  await screen.findByText(/Home|Enter the address/);
+  await screen.findByText(/Home|Enter the address|Sign in to/);
   // Not app itself: returning a promise from an async function unwraps it, which loses the helpers.
   return () => app.getPathname();
 }
@@ -76,16 +78,43 @@ describe("RootStack", () => {
     expect(screen.getByLabelText("Server address")).toBeOnTheScreen();
   });
 
-  it("opens the home screen when a server is stored", async () => {
+  it("opens the login screen when a server is stored", async () => {
     await storage.setServerUrl("https://stock.example.com");
 
     const pathname = await renderApp();
 
-    expect(pathname()).toBe("/");
-    expect(screen.getByText("Home")).toBeOnTheScreen();
+    expect(pathname()).toBe("/login");
+    expect(
+      screen.getByText("Sign in to https://stock.example.com."),
+    ).toBeOnTheScreen();
   });
 
-  it("goes to the home screen after connecting", async () => {
+  it("opens the home screen after signing in", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    fetch.mockImplementation(async (input) =>
+      new URL((input as Request).url).pathname === "/api/v1/auth/login"
+        ? Response.json({
+            token_type: "Bearer",
+            access_token: "access-1",
+            expires_in: 900,
+            refresh_token: "refresh-1",
+          })
+        : Response.json(info),
+    );
+    const pathname = await renderApp();
+
+    await fireEvent.changeText(screen.getByLabelText("Username"), "anna");
+    await fireEvent.changeText(
+      screen.getByLabelText("Password"),
+      "correct horse",
+    );
+    await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Home")).toBeOnTheScreen();
+    expect(pathname()).toBe("/");
+  });
+
+  it("goes to the login screen after connecting", async () => {
     const pathname = await renderApp();
 
     await fireEvent.changeText(
@@ -94,8 +123,10 @@ describe("RootStack", () => {
     );
     await fireEvent.press(screen.getByRole("button", { name: "Connect" }));
 
-    expect(await screen.findByText("Home")).toBeOnTheScreen();
-    expect(pathname()).toBe("/");
+    expect(
+      await screen.findByText("Sign in to https://stock.example.com."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/login");
     expect(await storage.getServerUrl()).toBe("https://stock.example.com");
   });
 
@@ -144,18 +175,19 @@ describe("RootStack", () => {
     serveInfo({});
     await fireEvent.press(retry);
 
-    expect(await screen.findByText("Home")).toBeOnTheScreen();
-    expect(pathname()).toBe("/");
+    expect(
+      await screen.findByText("Sign in to https://stock.example.com."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/login");
   });
 
-  it("stays usable while the server cannot be reached", async () => {
+  it("still offers to sign in while the server cannot be reached", async () => {
     await storage.setServerUrl("https://stock.example.com");
     fetch.mockRejectedValue(new TypeError("Network request failed"));
 
     const pathname = await renderApp();
 
-    expect(screen.getByText("Home")).toBeOnTheScreen();
-    expect(pathname()).toBe("/");
+    expect(pathname()).toBe("/login");
   });
 
   it("sets up a server without users and signs in", async () => {

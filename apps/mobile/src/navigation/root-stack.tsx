@@ -1,13 +1,13 @@
 import { Stack } from "expo-router";
 
-import { useServerUrl } from "@/api/provider";
+import { useServerUrl, useSignedIn } from "@/api/provider";
 import { useServerInfo } from "@/api/server-info";
 import { compatibilityWith } from "@/compatibility/compatibility";
 
 /**
  * The app's screens, each available only in the state it belongs to: the Connect screen until a server
- * is stored, then the "update needed" screen while the app and the server cannot work together, and the
- * setup screen while the server has no users.
+ * is stored, then the "update needed" screen while the app and the server cannot work together, the
+ * setup screen while the server has no users, and the login screen until the user signs in.
  *
  * Until the server's `/info` arrives, or when it fails, the app behaves as if the server were compatible
  * and set up, so an app that cannot reach its server stays usable and its screens show their own errors.
@@ -18,11 +18,16 @@ export function RootStack() {
   const compatibility = info ? compatibilityWith(info) : null;
   const compatible = compatibility === null || compatibility === "ok";
   const setupRequired = info?.setup_required === true;
+  const ready = hasServer && compatible && !setupRequired;
+  const signedIn = useSignedIn();
 
   return (
     <Stack>
-      <Stack.Protected guard={hasServer && compatible && !setupRequired}>
+      <Stack.Protected guard={ready && signedIn}>
         <Stack.Screen name="index" />
+      </Stack.Protected>
+      <Stack.Protected guard={ready && !signedIn}>
+        <Stack.Screen name="login" />
       </Stack.Protected>
       <Stack.Protected guard={hasServer && compatible && setupRequired}>
         <Stack.Screen name="setup" />
