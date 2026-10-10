@@ -1976,6 +1976,8 @@
         "required": [
           "id",
           "product_id",
+          "product_sku",
+          "product_name",
           "type",
           "delta",
           "quantity_after",
@@ -1984,6 +1986,7 @@
           "reference",
           "voids_movement_id",
           "actor_id",
+          "actor_name",
           "created_at"
         ],
         "type": "object",
@@ -1995,6 +1998,12 @@
           "product_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "product_sku": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
           },
           "type": {
             "$ref": "#/components/schemas/StockMovementType"
@@ -2032,6 +2041,9 @@
           "actor_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "actor_name": {
+            "type": "string"
           },
           "created_at": {
             "type": "string",

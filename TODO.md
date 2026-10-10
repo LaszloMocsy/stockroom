@@ -153,7 +153,7 @@ _Spec: 3.1, 9.1, 10.1, D8._
 - [x] **H4** — Add automatic token refresh with a single in-flight refresh and a retry of the original request. _Done when:_ concurrent 401s trigger one refresh; unit tested.
 - [x] **H5** — Add a client helper `checkCompatibility(info, clientVersion)` returning `ok`, `app_outdated`, or `server_outdated`. _Done when:_ unit tested for all three outcomes.
 - [x] **H6** — Add CI steps that build `packages/api-client` from the committed snapshot, so a snapshot change that breaks the client's types fails CI. _Done when:_ CI is green on a clean tree and fails when the snapshot removes something the client uses.
-- [ ] **H7** — Add `actor_name`, `product_sku`, and `product_name` to the stock movement response (movement list, create, void, and `recent_movements` in `/stats/summary`), so STAFF clients can show who did what without listing users (ADMIN-only). _Done when:_ a STAFF caller sees the names; the change is additive; the OpenAPI snapshot is regenerated and committed; tested.
+- [x] **H7** — Add `actor_name`, `product_sku`, and `product_name` to the stock movement response (movement list, create, void, and `recent_movements` in `/stats/summary`), so STAFF clients can show who did what without listing users (ADMIN-only). _Done when:_ a STAFF caller sees the names; the change is additive; the OpenAPI snapshot is regenerated and committed; tested.
 
 ## I. Mobile app (Expo)
 

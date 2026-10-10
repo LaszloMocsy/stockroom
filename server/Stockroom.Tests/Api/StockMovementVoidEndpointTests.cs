@@ -55,7 +55,7 @@ public sealed class StockMovementVoidEndpointTests(StockroomApiFactory factory, 
     [Fact]
     public async Task TheActorUndoesTheirOwnMovementWithinTheUndoWindow()
     {
-        var (client, staff) = await CreateClientWithUserAsync(factory, Roles.Staff);
+        var (client, staff) = await CreateClientWithUserAsync(factory, Roles.Staff, "Anna Staff");
         using var _ = client;
         var product = await CreateProductAsync(DatabaseUrl);
         await ReceiveAsync(DatabaseUrl, product, staff, 10, ago: TimeSpan.FromHours(1));
@@ -67,6 +67,8 @@ public sealed class StockMovementVoidEndpointTests(StockroomApiFactory factory, 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal((1, 10), (body.GetProperty("delta").GetInt32(), body.GetProperty("quantity_after").GetInt32()));
         Assert.Equal(staff.PublicId, body.GetProperty("actor_id").GetGuid());
+        Assert.Equal("Anna Staff", body.GetProperty("actor_name").GetString());
+        Assert.Equal((product.Sku, product.Name), (body.GetProperty("product_sku").GetString(), body.GetProperty("product_name").GetString()));
     }
 
     [Fact]
@@ -321,9 +323,9 @@ public sealed class StockMovementVoidEndpointTests(StockroomApiFactory factory, 
         await AssertNotVoidedAsync(received);
     }
 
-    private static async Task<(HttpClient Client, User User)> CreateClientWithUserAsync(StockroomApiFactory app, string role)
+    private static async Task<(HttpClient Client, User User)> CreateClientWithUserAsync(StockroomApiFactory app, string role, string displayName = "Test User")
     {
-        var user = await CreateUserAsync(app, role);
+        var user = await CreateUserAsync(app, role, displayName);
         var tokens = await LoginAsync(app, user.UserName!);
         var client = app.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);

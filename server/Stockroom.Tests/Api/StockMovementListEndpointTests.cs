@@ -22,10 +22,10 @@ public sealed class StockMovementListEndpointTests(StockroomApiFactory factory, 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task MovementsAreListedNewestFirstWithPublicIds()
+    public async Task MovementsAreListedNewestFirstWithPublicIdsAndNames()
     {
         using var client = await CreateClientAsAsync(factory, Roles.Staff);
-        var actor = await CreateUserAsync(factory, Roles.Staff);
+        var actor = await CreateUserAsync(factory, Roles.Staff, "Anna Staff");
         var product = TestProducts.New($"P-{Guid.NewGuid():N}");
         var received = Movement(product, actor, StockMovementType.Receive, T0, delta: 10);
         var issued = Movement(product, actor, StockMovementType.Issue, T0.AddMinutes(1), delta: -3);
@@ -38,12 +38,15 @@ public sealed class StockMovementListEndpointTests(StockroomApiFactory factory, 
         Assert.Null(page.NextCursor);
         var first = page.Items[0];
         Assert.Equal(
-            ["id", "product_id", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "created_at"],
+            ["id", "product_id", "product_sku", "product_name", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "actor_name", "created_at"],
             first.EnumerateObject().Select(p => p.Name));
         Assert.Equal(product.PublicId, first.GetProperty("product_id").GetGuid());
+        Assert.Equal(product.Sku, first.GetProperty("product_sku").GetString());
+        Assert.Equal(product.Name, first.GetProperty("product_name").GetString());
         Assert.Equal("void", first.GetProperty("type").GetString());
         Assert.Equal(issued.PublicId, first.GetProperty("voids_movement_id").GetGuid());
         Assert.Equal(actor.PublicId, first.GetProperty("actor_id").GetGuid());
+        Assert.Equal("Anna Staff", first.GetProperty("actor_name").GetString());
         Assert.Equal(T0.AddMinutes(2), first.GetProperty("created_at").GetDateTimeOffset());
     }
 

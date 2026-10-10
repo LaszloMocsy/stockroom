@@ -3,9 +3,14 @@ using Stockroom.Data;
 
 namespace Stockroom.Api.Endpoints;
 
-/// <summary>A stock movement, with every reference as a public ID (spec 3.1).</summary>
+/// <summary>
+/// A stock movement, with every reference as a public ID (spec 3.1). The product's SKU and name and the actor's
+/// display name come along, so a STAFF client, which cannot list users, needs no extra lookups (spec 10).
+/// </summary>
 /// <param name="Id">The movement's public ID.</param>
 /// <param name="ProductId">Public ID of the product.</param>
+/// <param name="ProductSku">The product's SKU.</param>
+/// <param name="ProductName">The product's current name.</param>
 /// <param name="Type">What the movement did.</param>
 /// <param name="Delta">Signed change applied to the quantity.</param>
 /// <param name="QuantityAfter">The product's quantity right after this movement.</param>
@@ -14,10 +19,13 @@ namespace Stockroom.Api.Endpoints;
 /// <param name="Reference">External reference, such as an order number or delivery note.</param>
 /// <param name="VoidsMovementId">On a <c>void</c>, the public ID of the movement it reverses; otherwise <c>null</c>.</param>
 /// <param name="ActorId">Public ID of the user who made the movement.</param>
+/// <param name="ActorName">The current display name of the user who made the movement.</param>
 /// <param name="CreatedAt">When the server recorded the movement.</param>
 public sealed record StockMovementResponse(
     Guid Id,
     Guid ProductId,
+    string ProductSku,
+    string ProductName,
     StockMovementType Type,
     int Delta,
     int QuantityAfter,
@@ -26,6 +34,7 @@ public sealed record StockMovementResponse(
     string? Reference,
     Guid? VoidsMovementId,
     Guid ActorId,
+    string ActorName,
     DateTimeOffset CreatedAt)
 {
     /// <summary>
@@ -43,6 +52,8 @@ public sealed record StockMovementResponse(
         select new StockMovementResponse(
             movement.PublicId,
             product.PublicId,
+            product.Sku,
+            product.Name,
             movement.Type,
             movement.Delta,
             movement.QuantityAfter,
@@ -51,5 +62,6 @@ public sealed record StockMovementResponse(
             movement.Reference,
             voided == null ? null : voided.PublicId,
             actor.PublicId,
+            actor.DisplayName,
             movement.CreatedAt);
 }
