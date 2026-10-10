@@ -1,5 +1,9 @@
 import { unwrap } from "@stockroom/api-client";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 
 import { useApiClient } from "@/api/provider";
 
@@ -29,5 +33,20 @@ export function useProducts(search: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** The product `id`, with its barcodes and units on hand, archived or not. */
+export function useProduct(id: string) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["products", "detail", id],
+    queryFn: ({ signal }) =>
+      unwrap(
+        client.GET("/api/v1/products/{id}", {
+          params: { path: { id } },
+          signal,
+        }),
+      ),
   });
 }

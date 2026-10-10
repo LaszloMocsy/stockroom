@@ -20,6 +20,7 @@ import { clientVersion } from "@/api/client";
 import { ApiProvider, useApiClient } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
 import LoginScreen from "@/app/login";
+import ProductScreen from "@/app/product/[id]";
 import TabsLayout from "@/app/(tabs)/_layout";
 import ProductsScreen from "@/app/(tabs)/products";
 import ScanScreen from "@/app/(tabs)/scan";
@@ -90,6 +91,7 @@ async function renderApp(): Promise<() => string> {
     "update-required": UpdateRequiredScreen,
     setup: SetupScreen,
     login: LoginScreen,
+    "product/[id]": ProductScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
@@ -189,6 +191,48 @@ describe("RootStack", () => {
       await screen.findByText("Scanning barcodes will be here."),
     ).toBeOnTheScreen();
     expect(pathname()).toBe("/scan");
+  });
+
+  it("opens a product from the Products list", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+    const product = {
+      id: "0b8e2c1a-5d7f-4e3b-9a61-2f4c8d9e1a37",
+      sku: "WRK-CBT",
+      name: "Cable ties",
+      description: null,
+      barcodes: ["4006381333931"],
+      min_stock: 10,
+      quantity: 2,
+      archived_at: null,
+      created_at: "2026-10-01T08:00:00Z",
+      updated_at: "2026-10-01T08:00:00Z",
+    };
+    fetch.mockImplementation(async (input) => {
+      switch (new URL((input as Request).url).pathname) {
+        case "/api/v1/products":
+          return Response.json({ items: [product], next_cursor: null });
+        case `/api/v1/products/${product.id}`:
+          return Response.json(product);
+        default:
+          return Response.json(info);
+      }
+    });
+    const pathname = await renderApp();
+    await fireEvent.press(
+      screen.getByRole("button", { name: tabName("Products") }),
+    );
+
+    await fireEvent.press(
+      await screen.findByRole("link", { name: /Cable ties/ }),
+    );
+
+    expect(await screen.findByText("4006381333931")).toBeOnTheScreen();
+    expect(screen.getByText("Low on stock")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${product.id}`);
   });
 
   it("shows no tabs to signed-out users", async () => {

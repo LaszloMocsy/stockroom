@@ -1,9 +1,11 @@
 import type { Schema } from "@stockroom/api-client";
+import { Link } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
+import { stockStatus } from "./stock-status";
 import { useProducts } from "./use-products";
 
 /** How long typing has to pause before the list is searched again. */
@@ -111,24 +114,33 @@ export function ProductList() {
   );
 }
 
-/** A product's name, SKU, and quantity, with low stock in words rather than colour. */
+/**
+ * A product's name, SKU, and quantity, with low stock in words rather than colour. Opens the product.
+ */
 function ProductRow({ product }: { product: Schema<"ProductResponse"> }) {
   const { t } = useTranslation();
-  const lowStock =
-    product.min_stock !== null && product.quantity <= product.min_stock;
+  const quantity = { quantity: product.quantity };
+  const status = stockStatus(product);
   return (
-    // One element for screen readers.
-    <View accessible style={styles.product}>
-      <Text style={styles.productName}>{product.name}</Text>
-      <Text style={styles.productSku}>{product.sku}</Text>
-      <Text style={styles.text}>
-        {product.quantity <= 0
-          ? t("products.outOfStock")
-          : lowStock
-            ? t("products.quantityLow", { quantity: product.quantity })
-            : t("products.quantity", { quantity: product.quantity })}
-      </Text>
-    </View>
+    <Link
+      asChild
+      href={{ pathname: "/product/[id]", params: { id: product.id } }}
+    >
+      <Pressable
+        role="link"
+        style={({ pressed }) => [styles.product, pressed && styles.pressed]}
+      >
+        <Text style={styles.productName}>{product.name}</Text>
+        <Text style={styles.productSku}>{product.sku}</Text>
+        <Text style={styles.text}>
+          {status === "out"
+            ? t("products.outOfStock")
+            : status === "low"
+              ? t("products.quantityLow", quantity)
+              : t("products.quantity", quantity)}
+        </Text>
+      </Pressable>
+    </Link>
   );
 }
 
@@ -167,12 +179,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   list: {
-    gap: 16,
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   product: {
+    minHeight: 48,
     gap: 2,
+    paddingVertical: 8,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   productName: {
     fontSize: 16,
