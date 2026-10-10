@@ -1,4 +1,3 @@
-import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -9,7 +8,6 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: t("app.name") }} />
       <Text style={styles.title}>{t("app.name")}</Text>
       <Text style={styles.subtitle}>{t("home.comingSoon")}</Text>
       <ServerStatus />

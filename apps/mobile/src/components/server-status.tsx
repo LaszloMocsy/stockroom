@@ -1,9 +1,8 @@
-import { unwrap } from "@stockroom/api-client";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, Text } from "react-native";
 
-import { useApiClient, useServerUrl } from "@/api/provider";
+import { useServerUrl } from "@/api/provider";
+import { useServerInfo } from "@/api/server-info";
 
 /** Whether the app reaches the current server, with the server's and API's versions. */
 export function ServerStatus() {
@@ -17,11 +16,7 @@ export function ServerStatus() {
 
 function ServerInfo({ serverUrl }: { serverUrl: string }) {
   const { t } = useTranslation();
-  const client = useApiClient();
-  const info = useQuery({
-    queryKey: ["info"],
-    queryFn: () => unwrap(client.GET("/api/v1/info")),
-  });
+  const info = useServerInfo();
 
   let text: string;
   if (info.data) {

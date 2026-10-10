@@ -1,11 +1,10 @@
 import "@/i18n";
 
-import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
-import { defaultServerUrl } from "@/api/client";
 import { ApiProvider } from "@/api/provider";
 import { useAppStateFocus } from "@/api/query-client";
+import { RootStack } from "@/navigation/root-stack";
 import { secureStore } from "@/storage/secure-store";
 import { createAppStorage } from "@/storage/storage";
 
@@ -15,8 +14,8 @@ export default function RootLayout() {
   useAppStateFocus();
 
   return (
-    <ApiProvider storage={storage} defaultServerUrl={defaultServerUrl}>
-      <Stack />
+    <ApiProvider storage={storage}>
+      <RootStack />
       <StatusBar style="auto" />
     </ApiProvider>
   );

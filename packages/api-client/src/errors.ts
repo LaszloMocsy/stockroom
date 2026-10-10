@@ -18,18 +18,54 @@ export class ApiResponseError extends Error {
     message: string,
     /** Extra data for some codes, for example the current value of a conflicting count. */
     readonly details: unknown = null,
+    /**
+     * How many seconds to wait before trying again, from the `Retry-After` header, for example after a
+     * 429 from rate limiting or a login lockout; null without one.
+     */
+    readonly retryAfter: number | null = null,
   ) {
     super(message);
   }
 
-  /** Builds the error from a response's status and its parsed body, as openapi-fetch returns them. */
-  static from(status: number, body: unknown): ApiResponseError {
+  /**
+   * Builds the error from a response's status and its parsed body, as openapi-fetch returns them, and
+   * optionally its headers.
+   */
+  static from(
+    status: number,
+    body: unknown,
+    headers?: Headers,
+  ): ApiResponseError {
+    const retryAfter = parseRetryAfter(headers?.get("Retry-After") ?? null);
     if (isErrorResponse(body)) {
       const { code, message, details } = body.error;
-      return new ApiResponseError(status, code, message, details);
+      return new ApiResponseError(status, code, message, details, retryAfter);
     }
-    return new ApiResponseError(status, null, `HTTP ${status}`);
+    return new ApiResponseError(
+      status,
+      null,
+      `HTTP ${status}`,
+      null,
+      retryAfter,
+    );
   }
+}
+
+/**
+ * Reads a `Retry-After` header as a number of seconds. The API sends whole seconds; an HTTP date, which
+ * a proxy may send instead, counts from now.
+ */
+function parseRetryAfter(value: string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+  if (/^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  const date = Date.parse(value);
+  return Number.isNaN(date)
+    ? null
+    : Math.max(0, Math.ceil((date - Date.now()) / 1000));
 }
 
 /**
@@ -42,7 +78,7 @@ export async function unwrap<Data>(
 ): Promise<Data> {
   const { data, error, response } = await request;
   if (!response.ok) {
-    throw ApiResponseError.from(response.status, error);
+    throw ApiResponseError.from(response.status, error, response.headers);
   }
   // Undefined only for a response without a body, such as 204, whose type is then undefined too.
   return data as Data;

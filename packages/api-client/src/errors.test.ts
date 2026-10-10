@@ -95,4 +95,62 @@ describe("unwrap", () => {
       new TypeError("Network request failed"),
     );
   });
+
+  it("reads how long to wait from Retry-After", async () => {
+    const client = clientAnswering(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "account_locked_out",
+              message: "Locked.",
+              details: null,
+            },
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": "90",
+            },
+          },
+        ),
+    );
+
+    const error = await unwrap(client.GET("/api/v1/info")).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toMatchObject({ code: "account_locked_out", retryAfter: 90 });
+  });
+});
+
+describe("ApiResponseError.from", () => {
+  it("has no wait without Retry-After", () => {
+    expect(ApiResponseError.from(429, null).retryAfter).toBeNull();
+  });
+
+  it("counts a Retry-After date from now", () => {
+    const inTwoMinutes = new Date(Date.now() + 120_000).toUTCString();
+
+    const error = ApiResponseError.from(
+      503,
+      null,
+      new Headers({ "Retry-After": inTwoMinutes }),
+    );
+
+    // toUTCString drops the milliseconds, so the wait may be a second shorter.
+    expect(error.retryAfter).toBeGreaterThanOrEqual(119);
+    expect(error.retryAfter).toBeLessThanOrEqual(120);
+  });
+
+  it("ignores a Retry-After it cannot read", () => {
+    const error = ApiResponseError.from(
+      429,
+      null,
+      new Headers({ "Retry-After": "soon" }),
+    );
+
+    expect(error.retryAfter).toBeNull();
+  });
 });
