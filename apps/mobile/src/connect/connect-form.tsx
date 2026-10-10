@@ -1,12 +1,13 @@
 import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 
 import { clientVersion } from "@/api/client";
 import { useSaveServerUrl } from "@/api/provider";
 import { compatibilityWith } from "@/compatibility/compatibility";
 import { Button } from "@/components/button";
+import { TextField } from "@/components/text-field";
 
 import { checkServer, ConnectError } from "./check-server";
 import { isAllowedServerUrl, normaliseServerUrl } from "./server-url";
@@ -61,27 +62,21 @@ export function ConnectForm({ initialAddress, allowHttp }: ConnectFormProps) {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.intro}>{t("connect.intro")}</Text>
-      <Text style={styles.label}>{t("connect.addressLabel")}</Text>
-      <TextInput
-        accessibilityLabel={t("connect.addressLabel")}
+      <TextField
         autoCapitalize="none"
         autoComplete="url"
         autoCorrect={false}
         editable={!pending}
+        error={error && errorText(error, t)}
         inputMode="url"
+        label={t("connect.addressLabel")}
         onChangeText={changeAddress}
-        onSubmitEditing={submit}
+        onSubmitEditing={() => void submit()}
         placeholder={t("connect.addressPlaceholder")}
         returnKeyType="go"
-        style={styles.input}
         textContentType="URL"
         value={address}
       />
-      {error && (
-        <Text role="alert" style={styles.error}>
-          {errorText(error, t)}
-        </Text>
-      )}
       <Button
         busy={pending}
         onPress={() => void submit()}
@@ -156,21 +151,5 @@ const styles = StyleSheet.create({
   },
   intro: {
     fontSize: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: "#8a8a8e",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  error: {
-    color: "#b3261e",
-    fontSize: 14,
   },
 });

@@ -12,6 +12,7 @@ import { Text } from "react-native";
 import { clientVersion } from "@/api/client";
 import { ApiProvider } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
+import SetupScreen from "@/app/setup";
 import UpdateRequiredScreen from "@/app/update-required";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage, type AppStorage } from "@/storage/storage";
@@ -58,6 +59,7 @@ async function renderApp(): Promise<() => string> {
     index: () => <Text>Home</Text>,
     connect: ConnectScreen,
     "update-required": UpdateRequiredScreen,
+    setup: SetupScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
@@ -154,5 +156,57 @@ describe("RootStack", () => {
 
     expect(screen.getByText("Home")).toBeOnTheScreen();
     expect(pathname()).toBe("/");
+  });
+
+  it("sets up a server without users and signs in", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    let hasUsers = false;
+    fetch.mockImplementation(async (input) => {
+      switch (new URL((input as Request).url).pathname) {
+        case "/api/v1/setup":
+          hasUsers = true;
+          return Response.json(
+            {
+              id: "6f1c1a52-8a1e-4c63-9a54-1e1f4b8f2d10",
+              username: "anna",
+              display_name: "Anna",
+              role: "ADMIN",
+            },
+            { status: 201 },
+          );
+        case "/api/v1/auth/login":
+          return Response.json({
+            token_type: "Bearer",
+            access_token: "access-1",
+            expires_in: 900,
+            refresh_token: "refresh-1",
+          });
+        default:
+          return Response.json({ ...info, setup_required: !hasUsers });
+      }
+    });
+    const pathname = await renderApp();
+    expect(await screen.findByLabelText("Your name")).toBeOnTheScreen();
+    expect(pathname()).toBe("/setup");
+
+    await fireEvent.changeText(screen.getByLabelText("Your name"), "Anna");
+    await fireEvent.changeText(screen.getByLabelText("Username"), "anna");
+    await fireEvent.changeText(
+      screen.getByLabelText("Password"),
+      "correct horse",
+    );
+    await fireEvent.changeText(
+      screen.getByLabelText("Repeat password"),
+      "correct horse",
+    );
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Create account" }),
+    );
+
+    expect(await screen.findByText("Home")).toBeOnTheScreen();
+    expect(pathname()).toBe("/");
+    // Signed in: the requests since carry the new access token.
+    const lastRequest = fetch.mock.calls.at(-1)![0] as Request;
+    expect(lastRequest.headers.get("Authorization")).toBe("Bearer access-1");
   });
 });

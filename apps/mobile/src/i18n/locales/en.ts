@@ -30,6 +30,32 @@ export const en = {
       saveFailed: "The server address could not be saved. Try again.",
     },
   },
+  setup: {
+    title: "Set up Stockroom",
+    intro:
+      "This server has no accounts yet. Create the first administrator account; you can add other people later.",
+    displayNameLabel: "Your name",
+    displayNameHint: "Shown next to the changes you make.",
+    usernameLabel: "Username",
+    usernameHint: "Letters, digits, and - . _ @ +",
+    passwordLabel: "Password",
+    passwordHint: "At least {{min}} characters.",
+    repeatedPasswordLabel: "Repeat password",
+    submit: "Create account",
+    submitting: "Creating account…",
+    errors: {
+      required: "This is required.",
+      usernameCharacters: "Use only letters, digits, and - . _ @ +",
+      passwordTooShort: "Use at least {{min}} characters.",
+      passwordsDiffer: "The passwords do not match.",
+      alreadyCompleted: "This server has already been set up.",
+      rateLimited: "Too many attempts. Wait a minute and try again.",
+      serverError:
+        "The server could not create the account (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   compatibility: {
     title: "Update needed",
     appOutdated: "Please update the app. This server needs a newer version.",

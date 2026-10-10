@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import type { AppStorage } from "@/storage/storage";
+import type { AppStorage, StoredTokens } from "@/storage/storage";
 
 import { createClient } from "./client";
 import { createQueryClient } from "./query-client";
@@ -19,6 +19,7 @@ interface ApiContextValue {
   serverUrl: string | null;
   client: ApiClient | null;
   saveServerUrl: (url: string) => Promise<void>;
+  saveTokens: (tokens: StoredTokens) => Promise<void>;
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null);
@@ -30,11 +31,12 @@ export interface ApiProviderProps {
 
 /**
  * Provides an API client for the stored server and a TanStack Query cache for it. Renders nothing until
- * it has read the stored server URL.
+ * it has read the stored server URL. The client sends the access token saved with `useSaveTokens`.
  */
 export function ApiProvider({ storage, children }: ApiProviderProps) {
   // Undefined while the stored URL is being read.
   const [serverUrl, setServerUrl] = useState<string | null>();
+  const [session] = useState(createSessionTokens);
 
   useEffect(() => {
     let current = true;
@@ -60,6 +62,14 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
     [storage],
   );
 
+  const saveTokens = useCallback(
+    async (newTokens: StoredTokens) => {
+      await storage.setTokens(newTokens);
+      session.set(newTokens);
+    },
+    [storage, session],
+  );
+
   // A new cache for each server, so one server's data never shows for another.
   const api = useMemo(
     () =>
@@ -71,22 +81,32 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
               client:
                 serverUrl === null
                   ? null
-                  : createClient({ baseUrl: serverUrl }),
+                  : createClient({
+                      baseUrl: serverUrl,
+                      getAccessToken: () => session.get()?.accessToken,
+                    }),
               saveServerUrl,
+              saveTokens,
             },
             queryClient: createQueryClient(),
           },
-    [serverUrl, saveServerUrl],
+    [serverUrl, saveServerUrl, saveTokens, session],
   );
 
-  // Drops a cache as soon as it is replaced or unmounted, rather than leaving its queries to garbage
-  // collection, whose five-minute timers would also keep a test run alive. React cleans up this effect
-  // before the queries below unsubscribe, which schedules that collection again, so clear afterwards.
+  // Drops a cache as soon as it is replaced or unmounted, rather than leaving its queries and mutations
+  // to garbage collection, whose five-minute timers would also keep a test run alive. React cleans up
+  // this effect before the hooks below unsubscribe, which schedules that collection again, so clear
+  // afterwards. Clearing stops the queries' timers but not the mutations', so stop those first.
   const queryClient = api?.queryClient;
   useEffect(
     () => () => {
       if (queryClient) {
-        queueMicrotask(() => queryClient.clear());
+        queueMicrotask(() => {
+          for (const mutation of queryClient.getMutationCache().getAll()) {
+            mutation.destroy();
+          }
+          queryClient.clear();
+        });
       }
     },
     [queryClient],
@@ -102,6 +122,21 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
       </QueryClientProvider>
     </ApiContext>
   );
+}
+
+/**
+ * The session's tokens, outside React state: the client reads them for every request, so a new token is
+ * used at once without a re-render. Restoring the stored tokens on launch and refreshing them come with
+ * session handling.
+ */
+function createSessionTokens() {
+  let tokens: StoredTokens | null = null;
+  return {
+    get: () => tokens,
+    set: (newTokens: StoredTokens | null) => {
+      tokens = newTokens;
+    },
+  };
 }
 
 function useApiContext(): ApiContextValue {
@@ -129,6 +164,11 @@ export function useApiClient(): ApiClient {
     throw new Error("No server is set, so there is no API client.");
   }
   return client;
+}
+
+/** Stores the tokens from a login, which the API client then sends. */
+export function useSaveTokens(): (tokens: StoredTokens) => Promise<void> {
+  return useApiContext().saveTokens;
 }
 
 /** Stores the URL of the server to talk to from now on, and switches the API client to it. */
