@@ -31,11 +31,11 @@ public static class TestAuth
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     /// <summary>Creates a user with a unique username, <see cref="Password"/>, and <paramref name="role"/>.</summary>
-    public static async Task<User> CreateUserAsync(WebApplicationFactory<Program> app, string role)
+    public static async Task<User> CreateUserAsync(WebApplicationFactory<Program> app, string role, string displayName = "Test User")
     {
         await using var scope = app.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-        var user = new User { UserName = $"user-{Guid.NewGuid():N}", DisplayName = "Test User" };
+        var user = new User { UserName = $"user-{Guid.NewGuid():N}", DisplayName = displayName };
         Assert.True((await users.CreateAsync(user, Password)).Succeeded);
         Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
         return user;

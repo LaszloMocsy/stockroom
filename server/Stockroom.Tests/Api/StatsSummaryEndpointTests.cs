@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,9 @@ public sealed class StatsSummaryEndpointTests(PostgresFixture postgres)
     public async Task FiguresCoverActiveProductsAndTheNewestMovements()
     {
         await using var app = await StockroomApiFactory.CreateAsync(postgres);
-        using var client = await CreateClientAsAsync(app, Roles.Admin);
+        var admin = await CreateUserAsync(app, Roles.Admin, "Ada Admin");
+        using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await LoginAsync(app, admin.UserName!)).AccessToken);
         await using (var scope = app.Services.CreateAsyncScope())
         {
             await scope.ServiceProvider.GetRequiredService<ISettingsStore>().SetAsync(StockroomSettings.AllowNegativeStock, true, Token);
@@ -75,8 +78,16 @@ public sealed class StatsSummaryEndpointTests(PostgresFixture postgres)
             recent.Select(m => m.GetProperty("created_at").GetDateTimeOffset()).OrderDescending(),
             recent.Select(m => m.GetProperty("created_at").GetDateTimeOffset()));
         Assert.Equal(
-            ["id", "product_id", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "created_at"],
+            ["id", "product_id", "product_sku", "product_name", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "actor_name", "created_at"],
             recent[0].EnumerateObject().Select(p => p.Name));
+
+        // A STAFF caller, who cannot list users, still sees who moved what.
+        using var staff = await CreateClientAsAsync(app, Roles.Staff);
+        var newest = (await GetSummaryAsync(staff)).GetProperty("recent_movements")[0];
+        var product = await GetProductAsync(staff, plenty);
+        Assert.Equal(
+            (product.GetProperty("sku").GetString(), product.GetProperty("name").GetString(), "Ada Admin"),
+            (newest.GetProperty("product_sku").GetString(), newest.GetProperty("product_name").GetString(), newest.GetProperty("actor_name").GetString()));
     }
 
     [Fact]
@@ -115,6 +126,13 @@ public sealed class StatsSummaryEndpointTests(PostgresFixture postgres)
             Token);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await ReadAsync(response)).GetProperty("id").GetGuid();
+    }
+
+    private static async Task<JsonElement> GetProductAsync(HttpClient client, Guid product)
+    {
+        using var response = await client.GetAsync(new Uri($"/api/v1/products/{product}", UriKind.Relative), Token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await ReadAsync(response);
     }
 
     private static async Task<JsonElement> GetSummaryAsync(HttpClient client)

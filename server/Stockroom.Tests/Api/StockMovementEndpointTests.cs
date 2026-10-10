@@ -25,7 +25,7 @@ public sealed class StockMovementEndpointTests(StockroomApiFactory factory) : IC
     [Fact]
     public async Task AReceiveAddsStockAndReturnsTheMovement()
     {
-        var (client, user) = await CreateClientWithUserAsync(Roles.Staff);
+        var (client, user) = await CreateClientWithUserAsync(Roles.Staff, "Anna Staff");
         using var _ = client;
         var product = await CreateProductAsync();
 
@@ -39,9 +39,11 @@ public sealed class StockMovementEndpointTests(StockroomApiFactory factory) : IC
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Null(response.Headers.Location);
         Assert.Equal(
-            ["id", "product_id", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "created_at"],
+            ["id", "product_id", "product_sku", "product_name", "type", "delta", "quantity_after", "reason", "note", "reference", "voids_movement_id", "actor_id", "actor_name", "created_at"],
             body.EnumerateObject().Select(p => p.Name));
         Assert.Equal(product.PublicId, body.GetProperty("product_id").GetGuid());
+        Assert.Equal(product.Sku, body.GetProperty("product_sku").GetString());
+        Assert.Equal(product.Name, body.GetProperty("product_name").GetString());
         Assert.Equal("receive", body.GetProperty("type").GetString());
         Assert.Equal(12, body.GetProperty("delta").GetInt32());
         Assert.Equal(12, body.GetProperty("quantity_after").GetInt32());
@@ -50,6 +52,7 @@ public sealed class StockMovementEndpointTests(StockroomApiFactory factory) : IC
         Assert.Equal("DN-1", body.GetProperty("reference").GetString());
         Assert.Equal(JsonValueKind.Null, body.GetProperty("voids_movement_id").ValueKind);
         Assert.Equal(user.PublicId, body.GetProperty("actor_id").GetGuid());
+        Assert.Equal("Anna Staff", body.GetProperty("actor_name").GetString());
         Assert.Equal(12, await QuantityAsync(product));
 
         await using var db = TestDatabase.CreateContext(DatabaseUrl);
@@ -274,9 +277,9 @@ public sealed class StockMovementEndpointTests(StockroomApiFactory factory) : IC
         Assert.Equal(0, await MovementCountAsync(product));
     }
 
-    private async Task<(HttpClient Client, User User)> CreateClientWithUserAsync(string role)
+    private async Task<(HttpClient Client, User User)> CreateClientWithUserAsync(string role, string displayName = "Test User")
     {
-        var user = await CreateUserAsync(factory, role);
+        var user = await CreateUserAsync(factory, role, displayName);
         var tokens = await LoginAsync(factory, user.UserName!);
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
