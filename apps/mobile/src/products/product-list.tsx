@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-import { Button } from "@/components/button";
+import { LoadError } from "@/components/load-error";
 import { TextField } from "@/components/text-field";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -144,31 +144,6 @@ function ProductRow({ product }: { product: Schema<"ProductResponse"> }) {
   );
 }
 
-function LoadError({
-  message,
-  retry,
-  retrying,
-}: {
-  message: string;
-  retry: () => void;
-  retrying: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.error}>
-      <Text role="alert" style={[styles.text, styles.errorText]}>
-        {message}
-      </Text>
-      <Button
-        busy={retrying}
-        onPress={retry}
-        title={retrying ? t("products.retrying") : t("products.retry")}
-        variant="secondary"
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -199,11 +174,5 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-  },
-  error: {
-    gap: 12,
-  },
-  errorText: {
-    color: "#b3261e",
   },
 });

@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 
-import { Button } from "@/components/button";
+import { LoadError } from "@/components/load-error";
 
 import { StockBadge } from "./stock-badge";
 import { stockStatus } from "./stock-status";
@@ -45,19 +45,11 @@ export function ProductDetail({ id }: { id: string }) {
     );
   } else if (product.error) {
     content = (
-      <View style={styles.section}>
-        <Text role="alert" style={[styles.text, styles.error]}>
-          {t("product.loadFailed")}
-        </Text>
-        <Button
-          busy={product.isFetching}
-          onPress={() => void product.refetch()}
-          title={
-            product.isFetching ? t("product.retrying") : t("product.retry")
-          }
-          variant="secondary"
-        />
-      </View>
+      <LoadError
+        message={t("product.loadFailed")}
+        retry={() => void product.refetch()}
+        retrying={product.isFetching}
+      />
     );
   } else {
     content = <ActivityIndicator />;
@@ -165,8 +157,5 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-  },
-  error: {
-    color: "#b3261e",
   },
 });

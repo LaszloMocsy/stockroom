@@ -8,6 +8,8 @@ export const en = {
   },
   common: {
     cancel: "Cancel",
+    retry: "Try again",
+    retrying: "Loading…",
   },
   tabs: {
     home: "Home",
@@ -123,8 +125,6 @@ export const en = {
       "{{quantity, number}} on hand, minimum {{minStock, number}}",
     outOfStock: "Out of stock, minimum {{minStock, number}}",
     lowStockFailed: "The products low on stock could not be loaded.",
-    retry: "Try again",
-    retrying: "Loading…",
   },
   products: {
     searchLabel: "Search",
@@ -136,8 +136,6 @@ export const en = {
     noMatches: "No products match “{{search}}”.",
     loadFailed: "The products could not be loaded.",
     loadMoreFailed: "More products could not be loaded.",
-    retry: "Try again",
-    retrying: "Loading…",
   },
   product: {
     title: "Product",
@@ -152,8 +150,6 @@ export const en = {
     description: "Description",
     notFound: "This product does not exist.",
     loadFailed: "The product could not be loaded.",
-    retry: "Try again",
-    retrying: "Loading…",
   },
   stock: {
     lowStock: "Low on stock",

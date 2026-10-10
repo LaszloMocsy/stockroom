@@ -12,7 +12,7 @@ import {
 } from "react-native";
 
 import { useApiClient } from "@/api/provider";
-import { Button } from "@/components/button";
+import { LoadError } from "@/components/load-error";
 
 /** How many low-stock products Home shows; the low-stock list has them all. */
 export const LowStockPreviewSize = 5;
@@ -155,31 +155,6 @@ function LowStockPreview({
   );
 }
 
-function LoadError({
-  message,
-  retry,
-  retrying,
-}: {
-  message: string;
-  retry: () => void;
-  retrying: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.section}>
-      <Text role="alert" style={[styles.text, styles.error]}>
-        {message}
-      </Text>
-      <Button
-        busy={retrying}
-        onPress={retry}
-        title={retrying ? t("home.retrying") : t("home.retry")}
-        variant="secondary"
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     gap: 32,
@@ -228,8 +203,5 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-  },
-  error: {
-    color: "#b3261e",
   },
 });
