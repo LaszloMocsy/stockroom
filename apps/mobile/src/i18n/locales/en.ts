@@ -243,8 +243,13 @@ export const en = {
   },
   scan: {
     lookingUp: "Looking up {{barcode}}…",
-    notFound: "No product has the barcode {{barcode}}.",
     lookUpFailed: "The barcode {{barcode}} could not be looked up.",
+  },
+  unknownBarcode: {
+    title: "No product found",
+    message: "No product has the barcode {{barcode}}.",
+    createProduct: "Create product",
+    attachToExisting: "Attach to existing product",
   },
   serverStatus: {
     noServer: "No server is set.",

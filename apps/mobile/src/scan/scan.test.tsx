@@ -8,7 +8,7 @@ import {
 } from "@jest/globals";
 import type { Schema } from "@stockroom/api-client";
 import type { BarcodeScanningResult } from "expo-camera";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import {
   act,
   fireEvent,
@@ -17,7 +17,10 @@ import {
 } from "expo-router/testing-library";
 
 import { ApiProvider } from "@/api/provider";
+import AttachBarcodeScreen from "@/app/attach-barcode";
+import NewProductScreen from "@/app/product/new";
 import ProductScreen from "@/app/product/[id]";
+import UnknownBarcodeScreen from "@/app/unknown-barcode";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage } from "@/storage/storage";
 
@@ -105,6 +108,9 @@ async function renderScan(): Promise<() => string> {
     ),
     index: Scan,
     "product/[id]": ProductScreen,
+    "product/new": NewProductScreen,
+    "attach-barcode": AttachBarcodeScreen,
+    "unknown-barcode": UnknownBarcodeScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
@@ -160,15 +166,69 @@ describe("Scan", () => {
     expect(pathname()).toBe(`/product/${cableTies.id}`);
   });
 
-  it("says so when no product has the barcode", async () => {
+  it("offers a sheet for a barcode that no product has", async () => {
     lookupResponse = () => errorResponse(404, "not_found");
     const pathname = await renderScan();
 
     await scan("0012345678905");
 
     expect(
-      await screen.findByText("No product has the barcode 0012345678905."),
+      await screen.findByRole("heading", { name: "No product found" }),
     ).toBeOnTheScreen();
+    expect(
+      screen.getByText("No product has the barcode 0012345678905."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/unknown-barcode");
+  });
+
+  it("opens the new product form with the unknown barcode", async () => {
+    lookupResponse = () => errorResponse(404, "not_found");
+    const pathname = await renderScan();
+    await scan("0012345678905");
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Create product" }),
+    );
+
+    expect(
+      (await screen.findByLabelText("Barcode (optional)")).props.value,
+    ).toBe("0012345678905");
+    expect(pathname()).toBe("/product/new");
+    // The form replaced the sheet, so going back returns to the scanner.
+    await act(() => router.back());
+    expect(pathname()).toBe("/");
+  });
+
+  it("opens the attach screen with the unknown barcode", async () => {
+    lookupResponse = () => errorResponse(404, "not_found");
+    const pathname = await renderScan();
+    await scan("0012345678905");
+
+    await fireEvent.press(
+      await screen.findByRole("button", {
+        name: "Attach to existing product",
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Pick the product that has the barcode 0012345678905.",
+      ),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/attach-barcode");
+    await act(() => router.back());
+    expect(pathname()).toBe("/");
+  });
+
+  it("closes the sheet on Cancel", async () => {
+    lookupResponse = () => errorResponse(404, "not_found");
+    const pathname = await renderScan();
+    await scan("0012345678905");
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Cancel" }),
+    );
+
     expect(pathname()).toBe("/");
   });
 

@@ -12,7 +12,8 @@ import { BarcodeScanner } from "./barcode-scanner";
 
 /**
  * The Scan tab (spec 4.2): a scanned barcode is looked up and its product opens, archived ones
- * included. The camera is off while another tab or screen is in front.
+ * included. A barcode that no product has opens a sheet that offers to create a product with it or to
+ * attach it to an existing one (spec 5, flow 4). The camera is off while another tab or screen is in front.
  */
 export function Scan() {
   const { t } = useTranslation();
@@ -33,16 +34,24 @@ export function Scan() {
       queryClient.setQueryData(productKey(product.id), product),
   });
 
+  // Neither opens anything when the user moved on to another tab while the barcode was looked up.
   const open = (barcode: string) =>
     lookUp.mutate(barcode, {
       onSuccess: (product) => {
         lookUp.reset();
-        // Not when the user moved on to another tab while it was being looked up.
         if (navigation.isFocused()) {
           router.push({
             pathname: "/product/[id]",
             params: { id: product.id },
           });
+        }
+      },
+      onError: (error) => {
+        if (error instanceof ApiResponseError && error.status === 404) {
+          lookUp.reset();
+          if (navigation.isFocused()) {
+            router.push({ pathname: "/unknown-barcode", params: { barcode } });
+          }
         }
       },
     });
@@ -63,15 +72,6 @@ export function Scan() {
           {t("scan.lookingUp", { barcode })}
         </Text>
       </View>
-    );
-  } else if (
-    lookUp.error instanceof ApiResponseError &&
-    lookUp.error.status === 404
-  ) {
-    status = (
-      <Text role="alert" style={styles.text}>
-        {t("scan.notFound", { barcode })}
-      </Text>
     );
   } else if (lookUp.error) {
     status = (
