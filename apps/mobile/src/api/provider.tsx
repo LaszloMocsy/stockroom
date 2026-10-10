@@ -117,6 +117,11 @@ export function useServerUrl(): string | null {
   return useApiContext().serverUrl;
 }
 
+/** The API client for the current server, or null when there is none yet. */
+export function useOptionalApiClient(): ApiClient | null {
+  return useApiContext().client;
+}
+
 /** The API client for the current server. Use it only where a server is set (see `useServerUrl`). */
 export function useApiClient(): ApiClient {
   const { client } = useApiContext();

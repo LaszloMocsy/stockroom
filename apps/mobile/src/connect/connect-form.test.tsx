@@ -9,6 +9,7 @@ import {
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
 
+import { clientVersion } from "@/api/client";
 import { ApiProvider, useServerUrl } from "@/api/provider";
 import { MemoryStore } from "@/storage/memory-store";
 import {
@@ -183,6 +184,54 @@ describe("ConnectForm", () => {
     ).toBeOnTheScreen();
     expect(store.items.has(StorageKeys.serverUrl)).toBe(false);
     expect(screen.getByTestId("current-server")).toHaveTextContent("none");
+  });
+
+  it("says when the server's versions are unreadable", async () => {
+    fetch.mockImplementation(async () =>
+      Response.json({ ...info, api_version: "latest" }),
+    );
+    await renderForm();
+
+    await connectTo("stock.example.com");
+
+    expect(
+      await screen.findByText(
+        "https://stock.example.com is not a Stockroom server. Check the address.",
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it("refuses a server that needs a newer app", async () => {
+    fetch.mockImplementation(async () =>
+      Response.json({ ...info, min_client_version: "99.0.0" }),
+    );
+    await renderForm();
+
+    await connectTo("stock.example.com");
+
+    expect(
+      await screen.findByText(
+        `https://stock.example.com needs a newer version of the app than ${clientVersion}. Please update the app.`,
+      ),
+    ).toBeOnTheScreen();
+    expect(store.items.has(StorageKeys.serverUrl)).toBe(false);
+    expect(screen.getByTestId("current-server")).toHaveTextContent("none");
+  });
+
+  it("refuses a server that is outdated", async () => {
+    fetch.mockImplementation(async () =>
+      Response.json({ ...info, api_version: "0.9" }),
+    );
+    await renderForm();
+
+    await connectTo("stock.example.com");
+
+    expect(
+      await screen.findByText(
+        "The server at https://stock.example.com is outdated. Ask your administrator to update it.",
+      ),
+    ).toBeOnTheScreen();
+    expect(store.items.has(StorageKeys.serverUrl)).toBe(false);
   });
 
   it("says when the address cannot be stored", async () => {

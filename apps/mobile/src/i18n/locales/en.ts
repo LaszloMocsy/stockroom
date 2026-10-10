@@ -23,8 +23,22 @@ export const en = {
       serverError:
         "The server at {{url}} answered with an error (HTTP {{status}}). Try again later.",
       notStockroom: "{{url}} is not a Stockroom server. Check the address.",
+      appOutdated:
+        "{{url}} needs a newer version of the app than {{clientVersion}}. Please update the app.",
+      serverOutdated:
+        "The server at {{url}} is outdated. Ask your administrator to update it.",
       saveFailed: "The server address could not be saved. Try again.",
     },
+  },
+  compatibility: {
+    title: "Update needed",
+    appOutdated: "Please update the app. This server needs a newer version.",
+    serverOutdated:
+      "This server is outdated. Ask your administrator to update it.",
+    versions:
+      "App {{clientVersion}}, server {{serverVersion}} (API {{apiVersion}})",
+    retry: "Try again",
+    checking: "Checking…",
   },
   home: {
     comingSoon: "Mobile app coming soon.",

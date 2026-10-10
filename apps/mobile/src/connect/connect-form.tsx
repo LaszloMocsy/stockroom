@@ -1,16 +1,12 @@
 import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
 
+import { clientVersion } from "@/api/client";
 import { useSaveServerUrl } from "@/api/provider";
+import { compatibilityWith } from "@/compatibility/compatibility";
+import { Button } from "@/components/button";
 
 import { checkServer, ConnectError } from "./check-server";
 import { isAllowedServerUrl, normaliseServerUrl } from "./server-url";
@@ -86,31 +82,18 @@ export function ConnectForm({ initialAddress, allowHttp }: ConnectFormProps) {
           {errorText(error, t)}
         </Text>
       )}
-      <Pressable
-        accessibilityState={{
-          disabled: pending,
-          busy: pending,
-        }}
-        disabled={pending}
-        onPress={submit}
-        role="button"
-        style={({ pressed }) => [
-          styles.button,
-          (pressed || pending) && styles.buttonDimmed,
-        ]}
-      >
-        {pending && <ActivityIndicator color="#ffffff" />}
-        <Text style={styles.buttonText}>
-          {pending ? t("connect.connecting") : t("connect.submit")}
-        </Text>
-      </Pressable>
+      <Button
+        busy={pending}
+        onPress={() => void submit()}
+        title={pending ? t("connect.connecting") : t("connect.submit")}
+      />
     </ScrollView>
   );
 }
 
 /**
  * Normalises the address, refuses `http://` unless allowed, checks that a Stockroom server answers
- * there, and stores its URL.
+ * there and that this app can work with it (spec 10.1), and stores its URL.
  *
  * @throws {ConnectError} When any of these fails.
  */
@@ -126,7 +109,14 @@ async function connect(
   if (!isAllowedServerUrl(url, allowHttp)) {
     throw new ConnectError("insecure", url);
   }
-  await checkServer(url);
+  const info = await checkServer(url);
+  const compatibility = compatibilityWith(info);
+  if (compatibility === null) {
+    throw new ConnectError("not_stockroom", url);
+  }
+  if (compatibility !== "ok") {
+    throw new ConnectError(compatibility, url);
+  }
   try {
     await saveServerUrl(url);
   } catch {
@@ -150,6 +140,10 @@ function errorText(error: ConnectError, t: TFunction): string {
       });
     case "not_stockroom":
       return t("connect.errors.notStockroom", { url });
+    case "app_outdated":
+      return t("connect.errors.appOutdated", { url, clientVersion });
+    case "server_outdated":
+      return t("connect.errors.serverOutdated", { url });
     case "save_failed":
       return t("connect.errors.saveFailed");
   }
@@ -178,22 +172,5 @@ const styles = StyleSheet.create({
   error: {
     color: "#b3261e",
     fontSize: 14,
-  },
-  button: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 8,
-    backgroundColor: "#0a5cc2",
-  },
-  buttonDimmed: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

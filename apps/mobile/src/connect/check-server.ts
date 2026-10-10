@@ -9,6 +9,8 @@ import { createClient } from "@/api/client";
  * - `unreachable`: no answer, because of the network, a wrong address, or a timeout.
  * - `server_error`: the server, or a proxy in front of it, answered with a 5xx; it may work later.
  * - `not_stockroom`: something answered, but not with a Stockroom server's `/info`.
+ * - `app_outdated`, `server_outdated`: a Stockroom server answered, but this app cannot work with it
+ *   (see `checkCompatibility`).
  * - `save_failed`: the server is fine, but the app could not store its URL.
  */
 export type ConnectFailure =
@@ -17,6 +19,8 @@ export type ConnectFailure =
   | "unreachable"
   | "server_error"
   | "not_stockroom"
+  | "app_outdated"
+  | "server_outdated"
   | "save_failed";
 
 export class ConnectError extends Error {
