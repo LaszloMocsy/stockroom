@@ -159,6 +159,15 @@ pnpm --filter api-client test
 pnpm --filter api-client typecheck   # also type-checks the tests against the generated types
 ```
 
+The mobile app's unit tests run with [Jest](https://jestjs.io) and the [`jest-expo`](https://docs.expo.dev/develop/unit-testing/) preset, which mocks Expo's native modules as on iOS. They import the built API client, so build it first:
+
+```sh
+pnpm --filter api-client build
+pnpm --filter mobile test
+```
+
+Tests sit next to the code they test, as `*.test.ts` or `*.test.tsx`, and import `describe`, `it`, `expect`, and `jest` from `@jest/globals`. Keep them out of `apps/mobile/src/app`, where Expo Router would treat them as screens.
+
 ## Change the database schema
 
 Migrations live in `server/Stockroom.Data/Migrations` and are applied automatically when the API starts. After changing an entity or its configuration:
@@ -200,6 +209,7 @@ pnpm --filter api-client test
 pnpm --filter api-client build  # the app's checks need the built client
 pnpm --filter mobile typecheck  # TypeScript, strict
 pnpm --filter mobile lint       # ESLint with Expo's rules; warnings fail too
+pnpm --filter mobile test
 ```
 
 The app's typecheck uses the typed routes that `expo start` generates in `apps/mobile/.expo/types`, when they exist. Without them, for example on a fresh clone, it still passes, but route paths are not checked.

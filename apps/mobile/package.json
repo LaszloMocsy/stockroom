@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "test": "jest"
   },
   "dependencies": {
     "@stockroom/api-client": "workspace:*",
@@ -25,9 +26,16 @@
     "react-native-screens": "~4.26.2"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@react-native/jest-preset": "^0.86.3",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.5",
     "typescript": "~6.0.3"
+  },
+  "jest": {
+    "preset": "jest-expo"
   }
 }
