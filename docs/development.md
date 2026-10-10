@@ -197,7 +197,12 @@ pnpm format:check              # Prettier, as in CI; `pnpm format` fixes it
 (cd server && dotnet test)
 pnpm --filter api-client typecheck
 pnpm --filter api-client test
+pnpm --filter api-client build  # the app's checks need the built client
+pnpm --filter mobile typecheck  # TypeScript, strict
+pnpm --filter mobile lint       # ESLint with Expo's rules; warnings fail too
 ```
+
+The app's typecheck uses the typed routes that `expo start` generates in `apps/mobile/.expo/types`, when they exist. Without them, for example on a fresh clone, it still passes, but route paths are not checked.
 
 ## Troubleshooting
 
