@@ -198,7 +198,9 @@ export const en = {
     openSettings: "Open Settings",
   },
   scan: {
-    scanned: "Scanned {{barcode}}",
+    lookingUp: "Looking up {{barcode}}…",
+    notFound: "No product has the barcode {{barcode}}.",
+    lookUpFailed: "The barcode {{barcode}} could not be looked up.",
   },
   serverStatus: {
     noServer: "No server is set.",

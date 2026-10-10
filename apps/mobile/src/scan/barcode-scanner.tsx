@@ -4,7 +4,7 @@ import {
   type BarcodeScanningResult,
   type BarcodeType,
 } from "expo-camera";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -46,7 +46,13 @@ export function BarcodeScanner({
 }: BarcodeScannerProps) {
   const { t } = useTranslation();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
-  const isNew = useRef(createScanFilter()).current;
+  const [filter] = useState(() => createScanFilter());
+
+  useEffect(() => {
+    if (!paused) {
+      filter.resume(Date.now());
+    }
+  }, [paused, filter]);
 
   // The user may turn the camera on in Settings and come back: check again whenever the app returns.
   const granted = permission?.granted ?? false;
@@ -90,7 +96,7 @@ export function BarcodeScanner({
   }
 
   const scanned = ({ data }: BarcodeScanningResult) => {
-    if (isNew(data, Date.now())) {
+    if (filter.read(data, Date.now())) {
       onScan(data);
     }
   };

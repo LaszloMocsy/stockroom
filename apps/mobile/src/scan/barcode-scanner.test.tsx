@@ -204,4 +204,22 @@ describe("BarcodeScanner", () => {
     expect(camera().props.active).toBe(false);
     expect(camera().props.onBarcodeScanned).toBeUndefined();
   });
+
+  it("does not scan a barcode again that is still in view when it resumes", async () => {
+    givenPermission(permission(PermissionStatus.GRANTED));
+    const onScan = jest.fn();
+    const { rerender } = await render(<BarcodeScanner onScan={onScan} />);
+    await read("4006381333931");
+
+    // For example, the scan opened a product, and the user went back to the scanner.
+    await rerender(<BarcodeScanner onScan={onScan} paused />);
+    jest.advanceTimersByTime(60_000);
+    await rerender(<BarcodeScanner onScan={onScan} />);
+    await read("4006381333931");
+    expect(onScan).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(RescanAfterMs);
+    await read("4006381333931");
+    expect(onScan).toHaveBeenCalledTimes(2);
+  });
 });
