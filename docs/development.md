@@ -1,6 +1,6 @@
 # Development
 
-How to run Stockroom from a clean checkout: the API against a local database, the tests, and the development seed data. For contribution rules, see [CONTRIBUTING.md](../CONTRIBUTING.md); for every setting, see [Configuration](configuration.md).
+How to run Stockroom from a clean checkout: the API against a local database, the mobile app, the tests, and the development seed data. For contribution rules, see [CONTRIBUTING.md](../CONTRIBUTING.md); for every setting, see [Configuration](configuration.md).
 
 ## Contents
 
@@ -9,6 +9,7 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 - [Start the database](#start-the-database)
 - [Run the API](#run-the-api)
 - [Seed development data](#seed-development-data)
+- [Run the mobile app](#run-the-mobile-app)
 - [Run the tests](#run-the-tests)
 - [Change the database schema](#change-the-database-schema)
 - [Change the API](#change-the-api)
@@ -17,12 +18,13 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 
 ## Prerequisites
 
-| Tool                                     | Version                               | Used for                                                                  |
-| ---------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
-| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                                    |
-| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests                        |
-| Node                                     | 24.19.x                               | Repository tooling (formatting), the API client; the apps, once they land |
-| pnpm                                     | 12.9.1, via Corepack                  | The same                                                                  |
+| Tool                                                            | Version                               | Used for                                                            |
+| --------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| [.NET SDK](https://dotnet.microsoft.com)                        | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                              |
+| Docker (Desktop, Engine, or OrbStack)                           | Docker Compose v2                     | The development database and the integration tests                  |
+| Node                                                            | 24.19.x                               | Repository tooling (formatting), the API client, and the mobile app |
+| pnpm                                                            | 12.9.1, via Corepack                  | The same                                                            |
+| Xcode with an iOS Simulator, or Android Studio with an emulator | Current stable                        | Running the mobile app; optional, a phone with Expo Go also works   |
 
 The exact versions are pinned in the repository; see [Tool versions](../CONTRIBUTING.md#tool-versions). Commands below run from the repository root unless they start with `cd`.
 
@@ -31,7 +33,7 @@ The exact versions are pinned in the repository; see [Tool versions](../CONTRIBU
 ```sh
 nvm use                             # or any version manager that reads .nvmrc
 corepack enable                     # installs the pnpm version from package.json
-pnpm install                        # repository tooling (Prettier) and the API client
+pnpm install                        # repository tooling (Prettier), the API client, and the mobile app
 dotnet --version                    # should print the SDK pinned in global.json
 (cd server && dotnet tool restore)  # dotnet-ef, for migrations
 (cd server && dotnet build)
@@ -112,6 +114,20 @@ The `seed` command migrates the database, fills it, prints what it created, and 
 It is safe to run again. Users are matched by username and products by SKU, and only missing ones are created, so a second run creates nothing and leaves your own changes alone. For a fresh copy of the seed data, reset the database with `docker compose -f docker/compose.dev.yml down -v`, start it again, and seed.
 
 The command only runs in the `Development` environment, because the seed users have well-known passwords. `dotnet run` uses `Development`; anywhere else, it refuses and exits with code 1.
+
+## Run the mobile app
+
+The mobile app lives in [`apps/mobile`](../apps/mobile). It uses [Expo](https://docs.expo.dev) (SDK 57) with [Expo Router](https://docs.expo.dev/router/introduction/): every file under `apps/mobile/src/app` is a screen. It does not talk to the API yet, so it needs neither the database nor the API to start.
+
+```sh
+pnpm --filter mobile start      # start the Metro dev server
+```
+
+With the dev server running, press <kbd>i</kbd> to open the app in the iOS Simulator or <kbd>a</kbd> for the Android emulator; the first time, Expo installs [Expo Go](https://expo.dev/go) on it. To use a phone instead, install Expo Go from the App Store or Google Play and scan the QR code that the dev server prints; the phone must be on the same network as your computer. Saving a file reloads the app.
+
+`pnpm --filter mobile ios` and `pnpm --filter mobile android` start the dev server and open the simulator or emulator in one step.
+
+Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm --filter mobile start --clear`, which also clears Metro's cache.
 
 ## Run the tests
 

@@ -163,7 +163,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 
 ### I-a. Foundation
 
-- [ ] **I1** — Scaffold `apps/mobile` with Expo, TypeScript, and Expo Router inside the workspace. _Done when:_ the app starts in the simulator and shows a placeholder screen, `pnpm format:check` still passes (generated and build folders such as `.expo/` are in `.prettierignore`), and `docs/development.md` explains how to run the app.
+- [x] **I1** — Scaffold `apps/mobile` with Expo, TypeScript, and Expo Router inside the workspace. _Done when:_ the app starts in the simulator and shows a placeholder screen, `pnpm format:check` still passes (generated and build folders such as `.expo/` are in `.prettierignore`), and `docs/development.md` explains how to run the app.
 - [ ] **I2** — Configure Metro for the pnpm monorepo and consume `packages/api-client`, with a root script that builds the client before the app. _Done when:_ on a simulator or device the app calls a client function against a running dev API, including a request that gets a 401 and is refreshed and retried (the client's refresh relies on `Request.clone()` and `fetch(Request)`, which are only unit tested against a Node mock).
 - [ ] **I3** — Add ESLint, TypeScript strict mode, and `typecheck` / `lint` scripts for the app. _Done when:_ both scripts pass.
 - [ ] **I4** — Add a unit test runner for the app (for example `jest-expo`), a `test` script, and a CI job that builds `api-client` and then runs the app's `typecheck`, `lint`, and `test`. _Done when:_ a sample test passes, and the CI job is green on a clean tree.
