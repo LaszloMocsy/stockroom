@@ -167,7 +167,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I2** — Configure Metro for the pnpm monorepo and consume `packages/api-client`, with a root script that builds the client before the app. _Done when:_ on a simulator or device the app calls a client function against a running dev API, including a request that gets a 401 and is refreshed and retried (the client's refresh relies on `Request.clone()` and `fetch(Request)`, which are only unit tested against a Node mock).
 - [x] **I3** — Add ESLint, TypeScript strict mode, and `typecheck` / `lint` scripts for the app. _Done when:_ both scripts pass.
 - [x] **I4** — Add a unit test runner for the app (for example `jest-expo`), a `test` script, and a CI job that builds `api-client` and then runs the app's `typecheck`, `lint`, and `test`. _Done when:_ a sample test passes, and the CI job is green on a clean tree.
-- [ ] **I5** — Add persistent storage behind a small interface: tokens in `expo-secure-store` and the server URL. _Done when:_ unit tested with a fake store.
+- [x] **I5** — Add persistent storage behind a small interface: tokens in `expo-secure-store` and the server URL. _Done when:_ unit tested with a fake store.
 - [ ] **I6** — Add an app-wide data layer (TanStack Query) and an API client provider that reads the stored server URL (a development default from an Expo public env variable until I8 stores one). _Done when:_ a screen fetches `/info` through it.
 - [ ] **I7** — Add an i18n scaffold with English strings. _Done when:_ visible text on existing screens comes from translation keys.
 
