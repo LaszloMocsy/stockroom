@@ -117,17 +117,21 @@ The command only runs in the `Development` environment, because the seed users h
 
 ## Run the mobile app
 
-The mobile app lives in [`apps/mobile`](../apps/mobile). It uses [Expo](https://docs.expo.dev) (SDK 57) with [Expo Router](https://docs.expo.dev/router/introduction/): every file under `apps/mobile/src/app` is a screen. It does not talk to the API yet, so it needs neither the database nor the API to start.
+The mobile app lives in [`apps/mobile`](../apps/mobile). It uses [Expo](https://docs.expo.dev) (SDK 57) with [Expo Router](https://docs.expo.dev/router/introduction/): every file under `apps/mobile/src/app` is a screen. It talks to the API through [`packages/api-client`](../packages/api-client), so [start the API](#run-the-api) first.
 
 ```sh
-pnpm --filter mobile start      # start the Metro dev server
+pnpm mobile                     # build the API client, then start the Metro dev server
 ```
 
 With the dev server running, press <kbd>i</kbd> to open the app in the iOS Simulator or <kbd>a</kbd> for the Android emulator; the first time, Expo installs [Expo Go](https://expo.dev/go) on it. To use a phone instead, install Expo Go from the App Store or Google Play and scan the QR code that the dev server prints; the phone must be on the same network as your computer. Saving a file reloads the app.
 
-`pnpm --filter mobile ios` and `pnpm --filter mobile android` start the dev server and open the simulator or emulator in one step.
+`pnpm mobile --ios` and `pnpm mobile --android` start the dev server and open the simulator or emulator in one step. Other options go to `expo start` the same way.
 
-Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm --filter mobile start --clear`, which also clears Metro's cache.
+The app imports the API client's built output, not its sources, so `pnpm mobile` builds the client first. After changing the client or the OpenAPI snapshot, rebuild it with `pnpm --filter api-client build`; the running dev server picks up the change. Expo configures Metro for the pnpm workspace by itself, so the app has no `metro.config.js`.
+
+Until the app lets you choose a server, it connects to `http://localhost:5278`, which works in the iOS Simulator. Elsewhere, set `EXPO_PUBLIC_API_URL` when starting the dev server, for example `EXPO_PUBLIC_API_URL=http://10.0.2.2:5278 pnpm mobile` for the Android emulator. A phone needs your computer's network address, and the API has to listen on it rather than only on `localhost`. The placeholder screen shows whether it reached the API.
+
+Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm mobile --clear`, which also clears Metro's cache.
 
 ## Run the tests
 

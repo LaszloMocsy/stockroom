@@ -250,6 +250,28 @@ describe("token refresh", () => {
     );
   });
 
+  it("retries with a fetch whose responses are not global Response objects", async () => {
+    // Expo's fetch returns its own response class; openapi-fetch rejects those from middleware.
+    const foreign = (response: Response) =>
+      ({
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: response.headers,
+        text: () => response.text(),
+      }) as Response;
+    const server = new FakeServer();
+    const { client, store } = setup({
+      fetch: async (request) => foreign(await server.fetch(request)),
+    });
+
+    const { data, response } = await client.GET("/api/v1/me");
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ ok: true });
+    expect(store.refreshed).toHaveLength(1);
+  });
+
   it("ends the session once when the refresh token is rejected", async () => {
     const tokens = tokenStore("refresh-stolen");
     const { client, server } = setup(tokens.options);

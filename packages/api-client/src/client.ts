@@ -92,6 +92,29 @@ function bearer(token: string) {
   return `Bearer ${token}`;
 }
 
+/** Statuses whose responses cannot have a body; constructing one with a body throws. */
+const NullBodyStatuses = new Set([101, 103, 204, 205, 304]);
+
+/**
+ * openapi-fetch accepts a response from middleware only if it is an instance of the global `Response`.
+ * Expo replaces the global fetch with its own, whose responses are not, so copy them into one. API
+ * responses are text (JSON or CSV), and reading them as text keeps UTF-8 intact in React Native.
+ */
+async function asGlobalResponse(response: Response): Promise<Response> {
+  // Cast, as TypeScript assumes every Response is the global one and would narrow to never below.
+  if ((response as unknown) instanceof Response) {
+    return response;
+  }
+  const body = NullBodyStatuses.has(response.status)
+    ? null
+    : await response.text();
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 /** Sets the client headers and the access token, and refreshes and retries on a 401. */
 function authentication(
   options: ApiClientOptions,
@@ -196,7 +219,7 @@ function authentication(
 
       // Retried once, outside the middleware: a second 401 goes back to the caller.
       sent.request.headers.set("Authorization", bearer(token));
-      return fetch(sent.request);
+      return asGlobalResponse(await fetch(sent.request));
     },
 
     onError({ id }) {
