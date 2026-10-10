@@ -189,8 +189,16 @@ export const en = {
     lowStock: "Low on stock",
     outOfStock: "Out of stock",
   },
+  scanner: {
+    hint: "Point the camera at a barcode.",
+    permissionNeeded: "Stockroom needs the camera to scan barcodes.",
+    allowCamera: "Allow camera",
+    permissionDenied:
+      "Stockroom cannot use the camera. To scan barcodes, allow camera access in Settings.",
+    openSettings: "Open Settings",
+  },
   scan: {
-    comingSoon: "Scanning barcodes will be here.",
+    scanned: "Scanned {{barcode}}",
   },
   serverStatus: {
     noServer: "No server is set.",

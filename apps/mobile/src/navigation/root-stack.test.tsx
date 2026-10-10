@@ -34,6 +34,21 @@ import { createAppStorage, type AppStorage } from "@/storage/storage";
 
 import { RootStack } from "./root-stack";
 
+// The Scan tab asks for the camera, which has not been allowed yet.
+jest.mock("expo-camera", () => ({
+  ...jest.requireActual<object>("expo-camera"),
+  useCameraPermissions: () => [
+    {
+      status: "undetermined",
+      granted: false,
+      canAskAgain: true,
+      expires: "never",
+    },
+    jest.fn(),
+    jest.fn(),
+  ],
+}));
+
 const info = {
   server_version: "0.1.0",
   api_version: "1.0",
@@ -191,7 +206,7 @@ describe("RootStack", () => {
       screen.getByRole("button", { name: tabName("Scan") }),
     );
     expect(
-      await screen.findByText("Scanning barcodes will be here."),
+      await screen.findByText("Stockroom needs the camera to scan barcodes."),
     ).toBeOnTheScreen();
     expect(pathname()).toBe("/scan");
   });
