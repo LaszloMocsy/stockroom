@@ -184,7 +184,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 
 ### I-c. Browse
 
-- [ ] **I16** — Add the Home screen with summary figures and a low-stock preview. _Done when:_ shows live data from `/stats/summary` and `products?low_stock=true`.
+- [x] **I16** — Add the Home screen with summary figures and a low-stock preview. _Done when:_ shows live data from `/stats/summary` and `products?low_stock=true`.
 - [ ] **I17** — Add the Products list with debounced search and infinite scroll. _Done when:_ typing filters results; scrolling loads more.
 - [ ] **I18** — Add the product detail screen (name, SKU, barcodes, quantity, low-stock badge). _Done when:_ opens from the list, and low stock is shown with text or an icon, not by colour alone.
 - [ ] **I19** — Add the movement history list on the product detail screen. _Done when:_ shows who (`actor_name`), when, type, delta, reason, and note, with infinite scroll.

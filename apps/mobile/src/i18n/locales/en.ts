@@ -110,7 +110,21 @@ export const en = {
       "You will be signed out of {{serverUrl}}, and the app will ask for a server address again.",
   },
   home: {
-    comingSoon: "Mobile app coming soon.",
+    summaryHeading: "Overview",
+    totalProducts: "Products",
+    totalUnits: "Units on hand",
+    lowStockCount: "Low on stock",
+    outOfStockCount: "Out of stock",
+    number: "{{value, number}}",
+    summaryFailed: "The overview could not be loaded.",
+    lowStockHeading: "Low on stock",
+    noLowStock: "No products are low on stock.",
+    quantityOnHand:
+      "{{quantity, number}} on hand, minimum {{minStock, number}}",
+    outOfStock: "Out of stock, minimum {{minStock, number}}",
+    lowStockFailed: "The products low on stock could not be loaded.",
+    retry: "Try again",
+    retrying: "Loading…",
   },
   products: {
     comingSoon: "Your products will be listed here.",
