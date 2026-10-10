@@ -42,7 +42,8 @@ export function ApiProvider({
 
   useEffect(() => {
     let current = true;
-    storage
+    // Cannot reject: an unreadable URL counts as none stored.
+    void storage
       .getServerUrl()
       .catch(() => null)
       .then((stored) => {
