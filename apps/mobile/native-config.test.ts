@@ -22,9 +22,13 @@ function introspectConfig() {
       modResults: {
         android: {
           manifest: {
-            manifest: { application: { $: Record<string, string> }[] };
+            manifest: {
+              application: { $: Record<string, string> }[];
+              "uses-permission"?: { $: Record<string, string> }[];
+            };
           };
         };
+        ios: { infoPlist: Record<string, unknown> };
       };
     };
   };
@@ -39,5 +43,20 @@ describe("native configuration", () => {
         .application;
 
     expect(application?.$["android:usesCleartextTraffic"]).toBe("false");
+  }, 30_000);
+
+  // The scanner uses the camera, but nothing records sound.
+  it("asks for the camera and not the microphone", () => {
+    const { android, ios } = introspectConfig()._internal.modResults;
+    const permissions = (
+      android.manifest.manifest["uses-permission"] ?? []
+    ).map((permission) => permission.$["android:name"]);
+
+    expect(permissions).toContain("android.permission.CAMERA");
+    expect(permissions).not.toContain("android.permission.RECORD_AUDIO");
+    expect(ios.infoPlist.NSCameraUsageDescription).toBe(
+      "Stockroom uses the camera to scan barcodes.",
+    );
+    expect(ios.infoPlist).not.toHaveProperty("NSMicrophoneUsageDescription");
   }, 30_000);
 });

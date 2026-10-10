@@ -22,6 +22,7 @@ import ConnectScreen from "@/app/connect";
 import HomeScreen from "@/app/(tabs)/index";
 import LoginScreen from "@/app/login";
 import LowStockScreen from "@/app/low-stock";
+import NewProductScreen from "@/app/product/new";
 import ProductScreen from "@/app/product/[id]";
 import TabsLayout from "@/app/(tabs)/_layout";
 import ProductsScreen from "@/app/(tabs)/products";
@@ -33,6 +34,21 @@ import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage, type AppStorage } from "@/storage/storage";
 
 import { RootStack } from "./root-stack";
+
+// The Scan tab asks for the camera, which has not been allowed yet.
+jest.mock("expo-camera", () => ({
+  ...jest.requireActual<object>("expo-camera"),
+  useCameraPermissions: () => [
+    {
+      status: "undetermined",
+      granted: false,
+      canAskAgain: true,
+      expires: "never",
+    },
+    jest.fn(),
+    jest.fn(),
+  ],
+}));
 
 const info = {
   server_version: "0.1.0",
@@ -94,6 +110,7 @@ async function renderApp(home = Home): Promise<() => string> {
     setup: SetupScreen,
     login: LoginScreen,
     "product/[id]": ProductScreen,
+    "product/new": NewProductScreen,
     "low-stock": LowStockScreen,
   });
   await app;
@@ -191,7 +208,7 @@ describe("RootStack", () => {
       screen.getByRole("button", { name: tabName("Scan") }),
     );
     expect(
-      await screen.findByText("Scanning barcodes will be here."),
+      await screen.findByText("Stockroom needs the camera to scan barcodes."),
     ).toBeOnTheScreen();
     expect(pathname()).toBe("/scan");
   });
@@ -238,6 +255,31 @@ describe("RootStack", () => {
     expect(await screen.findByText("4006381333931")).toBeOnTheScreen();
     expect(screen.getByText("Low on stock")).toBeOnTheScreen();
     expect(pathname()).toBe(`/product/${product.id}`);
+  });
+
+  it("opens the new product form from the Products list", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+    fetch.mockImplementation(async (input) =>
+      new URL((input as Request).url).pathname === "/api/v1/products"
+        ? Response.json({ items: [], next_cursor: null })
+        : Response.json(info),
+    );
+    const pathname = await renderApp();
+    await fireEvent.press(
+      screen.getByRole("button", { name: tabName("Products") }),
+    );
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "New product" }),
+    );
+
+    expect(await screen.findByLabelText("Name")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Barcode (optional)").props.value).toBe("");
+    expect(pathname()).toBe("/product/new");
   });
 
   it("opens the low-stock list from Home", async () => {

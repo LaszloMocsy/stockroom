@@ -43,11 +43,14 @@ export function useProducts({ search = "", lowStock = false }: ProductFilter) {
   });
 }
 
+/** The query key of the product `id`, for example to fill in a product that another request returned. */
+export const productKey = (id: string) => ["products", "detail", id] as const;
+
 /** The product `id`, with its barcodes and units on hand, archived or not. */
 export function useProduct(id: string) {
   const client = useApiClient();
   return useQuery({
-    queryKey: ["products", "detail", id],
+    queryKey: productKey(id),
     queryFn: ({ signal }) =>
       unwrap(
         client.GET("/api/v1/products/{id}", {

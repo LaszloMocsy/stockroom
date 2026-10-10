@@ -1,9 +1,5 @@
-import { useTranslation } from "react-i18next";
-
-import { ComingSoon } from "@/components/coming-soon";
+import { Scan } from "@/scan/scan";
 
 export default function ScanScreen() {
-  const { t } = useTranslation();
-
-  return <ComingSoon text={t("scan.comingSoon")} />;
+  return <Scan />;
 }

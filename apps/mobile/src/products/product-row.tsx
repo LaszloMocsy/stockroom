@@ -8,35 +8,43 @@ import { stockStatus } from "./stock-status";
 
 /**
  * A product's name, SKU, units on hand, and minimum, with a badge in words and an icon when it is low on
- * or out of stock. Opens the product.
+ * or out of stock. Opens the product, or, with `onPress`, calls that instead, for example to pick it.
  */
 export function ProductRow({
   product,
+  onPress,
 }: {
   product: Schema<"ProductResponse">;
+  onPress?: ((product: Schema<"ProductResponse">) => void) | undefined;
 }) {
   const { t } = useTranslation();
-  return (
+  const row = (
+    <Pressable
+      onPress={onPress && (() => onPress(product))}
+      role={onPress ? "button" : "link"}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <Text style={styles.name}>{product.name}</Text>
+      <Text style={styles.sku}>{product.sku}</Text>
+      <Text style={styles.text}>
+        {product.min_stock === null
+          ? t("productRow.quantity", { quantity: product.quantity })
+          : t("productRow.quantityAndMinimum", {
+              quantity: product.quantity,
+              minStock: product.min_stock,
+            })}
+      </Text>
+      <StockBadge status={stockStatus(product)} />
+    </Pressable>
+  );
+  return onPress ? (
+    row
+  ) : (
     <Link
       asChild
       href={{ pathname: "/product/[id]", params: { id: product.id } }}
     >
-      <Pressable
-        role="link"
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <Text style={styles.name}>{product.name}</Text>
-        <Text style={styles.sku}>{product.sku}</Text>
-        <Text style={styles.text}>
-          {product.min_stock === null
-            ? t("productRow.quantity", { quantity: product.quantity })
-            : t("productRow.quantityAndMinimum", {
-                quantity: product.quantity,
-                minStock: product.min_stock,
-              })}
-        </Text>
-        <StockBadge status={stockStatus(product)} />
-      </Pressable>
+      {row}
     </Link>
   );
 }

@@ -127,6 +127,7 @@ export const en = {
   products: {
     searchLabel: "Search",
     searchPlaceholder: "Name, SKU, or barcode",
+    newProduct: "New product",
     none: "There are no products yet.",
     noMatches: "No products match “{{search}}”.",
     loadFailed: "The products could not be loaded.",
@@ -159,6 +160,49 @@ export const en = {
     moreHistoryFailed: "More history could not be loaded.",
     loadFailed: "The product could not be loaded.",
   },
+  createProduct: {
+    title: "New product",
+    nameLabel: "Name",
+    skuLabel: "SKU (optional)",
+    skuHint: "Leave empty to have one generated.",
+    minStockLabel: "Minimum stock (optional)",
+    minStockHint: "The product counts as low on stock at or below this.",
+    barcodeLabel: "Barcode (optional)",
+    initialQuantityLabel: "Units on hand (optional)",
+    initialQuantityHint: "How many you have now. Leave empty for none.",
+    submit: "Create product",
+    submitting: "Creating product…",
+    errors: {
+      required: "This is required.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooLarge: "Enter at most {{max, number}}.",
+      skuTaken: "Another product already has this SKU.",
+      barcodeTaken: "Another product already has this barcode.",
+      serverError:
+        "The server could not create the product (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  attachBarcode: {
+    title: "Attach barcode",
+    intro: "Pick the product that has the barcode {{barcode}}.",
+    noBarcode: "There is no barcode to attach. Scan one first.",
+    confirmTitle: "Attach barcode?",
+    confirmMessage:
+      "Attach {{barcode}} to {{name}} ({{sku}})? Scanning it will then open this product.",
+    attach: "Attach",
+    attaching: "Attaching {{barcode}}…",
+    openOwner: "Open that product",
+    errors: {
+      barcodeTaken: "Another product already has the barcode {{barcode}}.",
+      notFound: "{{name}} no longer exists. Pick another product.",
+      serverError:
+        "The server could not attach the barcode (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   movement: {
     types: {
       receive: "Added",
@@ -189,8 +233,23 @@ export const en = {
     lowStock: "Low on stock",
     outOfStock: "Out of stock",
   },
+  scanner: {
+    hint: "Point the camera at a barcode.",
+    permissionNeeded: "Stockroom needs the camera to scan barcodes.",
+    allowCamera: "Allow camera",
+    permissionDenied:
+      "Stockroom cannot use the camera. To scan barcodes, allow camera access in Settings.",
+    openSettings: "Open Settings",
+  },
   scan: {
-    comingSoon: "Scanning barcodes will be here.",
+    lookingUp: "Looking up {{barcode}}…",
+    lookUpFailed: "The barcode {{barcode}} could not be looked up.",
+  },
+  unknownBarcode: {
+    title: "No product found",
+    message: "No product has the barcode {{barcode}}.",
+    createProduct: "Create product",
+    attachToExisting: "Attach to existing product",
   },
   serverStatus: {
     noServer: "No server is set.",

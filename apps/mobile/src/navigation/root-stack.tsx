@@ -33,6 +33,23 @@ export function RootStack() {
           options={{ title: t("product.title") }}
         />
         <Stack.Screen
+          name="product/new"
+          options={{ title: t("createProduct.title") }}
+        />
+        <Stack.Screen
+          name="attach-barcode"
+          options={{ title: t("attachBarcode.title") }}
+        />
+        <Stack.Screen
+          name="unknown-barcode"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="low-stock"
           options={{ title: t("lowStock.title") }}
         />

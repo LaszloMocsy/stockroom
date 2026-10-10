@@ -1,7 +1,9 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
+import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -12,11 +14,13 @@ import { useProducts } from "./use-products";
 export const SearchDelayMs = 300;
 
 /**
- * Every active product, sorted by name, with a search by name, SKU, or barcode (spec 4.1). More
- * products load as the user scrolls towards the end; pulling down reloads the list.
+ * Every active product, sorted by name, with a search by name, SKU, or barcode (spec 4.1), and a button
+ * that creates a product. More products load as the user scrolls towards the end; pulling down reloads
+ * the list.
  */
 export function ProductList() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const query = useDebouncedValue(search, SearchDelayMs).trim();
   const products = useProducts({ search: query });
@@ -33,6 +37,11 @@ export function ProductList() {
           onChangeText={setSearch}
           placeholder={t("products.searchPlaceholder")}
           value={search}
+        />
+        <Button
+          onPress={() => router.push("/product/new")}
+          title={t("products.newProduct")}
+          variant="secondary"
         />
       </View>
       <ProductPages
@@ -56,5 +65,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 8,
+    gap: 12,
   },
 });

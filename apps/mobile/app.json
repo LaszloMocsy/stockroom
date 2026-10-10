@@ -34,6 +34,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Stockroom uses the camera to scan barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
