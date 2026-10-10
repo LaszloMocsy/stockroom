@@ -180,7 +180,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I12** — Add the login screen. _Done when:_ successful login stores tokens; failure shows an error.
 - [x] **I13** — Add session restore and silent refresh: the client's token refresh is wired to the stored tokens, and an expired session returns the user to login. _Done when:_ an app restart keeps the user signed in, and an expired access token is refreshed without a prompt.
 - [x] **I14** — Add logout and "Change server" (in Settings). _Done when:_ logout revokes the session on the server and clears the tokens; changing the server clears the URL and tokens and returns to the Connect screen.
-- [ ] **I15** — Add the app shell with tab navigation (Home, Products, Scan, Settings). _Done when:_ tabs render for signed-in users only.
+- [x] **I15** — Add the app shell with tab navigation (Home, Products, Scan, Settings). _Done when:_ tabs render for signed-in users only.
 
 ### I-c. Browse
 

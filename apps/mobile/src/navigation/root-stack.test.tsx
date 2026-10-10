@@ -8,7 +8,6 @@ import {
 } from "@jest/globals";
 import { unwrap } from "@stockroom/api-client";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
 import {
   act,
   fireEvent,
@@ -21,7 +20,10 @@ import { clientVersion } from "@/api/client";
 import { ApiProvider, useApiClient } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
 import LoginScreen from "@/app/login";
-import SettingsScreen from "@/app/settings";
+import TabsLayout from "@/app/(tabs)/_layout";
+import ProductsScreen from "@/app/(tabs)/products";
+import ScanScreen from "@/app/(tabs)/scan";
+import SettingsScreen from "@/app/(tabs)/settings";
 import SetupScreen from "@/app/setup";
 import UpdateRequiredScreen from "@/app/update-required";
 import { MemoryStore } from "@/storage/memory-store";
@@ -62,13 +64,11 @@ function Home() {
     queryKey: ["me"],
     queryFn: () => unwrap(client.GET("/api/v1/me")),
   });
-  return (
-    <>
-      <Text>Home</Text>
-      <Link href="/settings">Settings</Link>
-    </>
-  );
+  return <Text>Home screen</Text>;
 }
+
+/** A tab button's accessible name, for example "Home, tab, 1 of 4". */
+const tabName = (label: string) => new RegExp(`^${label}, tab,`);
 
 /**
  * Renders the app's routes, with the real root stack and screens and a stand-in home screen, and
@@ -81,16 +81,19 @@ async function renderApp(): Promise<() => string> {
         <RootStack />
       </ApiProvider>
     ),
-    index: Home,
+    "(tabs)/_layout": TabsLayout,
+    "(tabs)/index": Home,
+    "(tabs)/products": ProductsScreen,
+    "(tabs)/scan": ScanScreen,
+    "(tabs)/settings": SettingsScreen,
     connect: ConnectScreen,
     "update-required": UpdateRequiredScreen,
     setup: SetupScreen,
     login: LoginScreen,
-    settings: SettingsScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
-  await screen.findByText(/Home|Enter the address|Sign in to/);
+  await screen.findByText(/Home screen|Enter the address|Sign in to/);
   // Not app itself: returning a promise from an async function unwraps it, which loses the helpers.
   return () => app.getPathname();
 }
@@ -135,7 +138,7 @@ describe("RootStack", () => {
     );
     await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByText("Home")).toBeOnTheScreen();
+    expect(await screen.findByText("Home screen")).toBeOnTheScreen();
     expect(pathname()).toBe("/");
   });
 
@@ -148,8 +151,54 @@ describe("RootStack", () => {
 
     const pathname = await renderApp();
 
-    expect(screen.getByText("Home")).toBeOnTheScreen();
+    expect(screen.getByText("Home screen")).toBeOnTheScreen();
     expect(pathname()).toBe("/");
+  });
+
+  it("shows the tabs to signed-in users", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+    const pathname = await renderApp();
+
+    for (const tab of ["Home", "Products", "Scan", "Settings"]) {
+      expect(
+        screen.getByRole("button", { name: tabName(tab) }),
+      ).toBeOnTheScreen();
+    }
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: tabName("Products") }),
+    );
+    expect(
+      await screen.findByText("Your products will be listed here."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/products");
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: tabName("Scan") }),
+    );
+    expect(
+      await screen.findByText("Scanning barcodes will be here."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/scan");
+  });
+
+  it("shows no tabs to signed-out users", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+
+    await renderApp();
+
+    expect(
+      screen.getByText("Sign in to https://stock.example.com."),
+    ).toBeOnTheScreen();
+    for (const tab of ["Home", "Products", "Scan", "Settings"]) {
+      expect(
+        screen.queryByRole("button", { name: tabName(tab) }),
+      ).not.toBeOnTheScreen();
+    }
   });
 
   it("returns to the login screen when the session has expired", async () => {
@@ -303,7 +352,7 @@ describe("RootStack", () => {
       screen.getByRole("button", { name: "Create account" }),
     );
 
-    expect(await screen.findByText("Home")).toBeOnTheScreen();
+    expect(await screen.findByText("Home screen")).toBeOnTheScreen();
     expect(pathname()).toBe("/");
     // Signed in: the requests since carry the new access token.
     const lastRequest = fetch.mock.calls.at(-1)![0] as Request;

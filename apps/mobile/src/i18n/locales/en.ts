@@ -9,6 +9,12 @@ export const en = {
   common: {
     cancel: "Cancel",
   },
+  tabs: {
+    home: "Home",
+    products: "Products",
+    scan: "Scan",
+    settings: "Settings",
+  },
   connect: {
     title: "Connect to server",
     intro:
@@ -92,7 +98,6 @@ export const en = {
     checking: "Checking…",
   },
   settings: {
-    title: "Settings",
     accountHeading: "Account",
     signedInAs: "Signed in as {{name}} ({{username}})",
     signOut: "Sign out",
@@ -106,7 +111,12 @@ export const en = {
   },
   home: {
     comingSoon: "Mobile app coming soon.",
-    settings: "Settings",
+  },
+  products: {
+    comingSoon: "Your products will be listed here.",
+  },
+  scan: {
+    comingSoon: "Scanning barcodes will be here.",
   },
   serverStatus: {
     noServer: "No server is set.",
