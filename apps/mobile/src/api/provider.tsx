@@ -1,4 +1,4 @@
-import type { ApiClient } from "@stockroom/api-client";
+import type { ApiClient, TokenResponse } from "@stockroom/api-client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createContext,
@@ -31,9 +31,12 @@ export interface ApiProviderProps {
 }
 
 /**
- * Provides an API client for the stored server and a TanStack Query cache for it. Renders nothing until
- * it has read the stored server URL. The client sends the access token saved with `useSaveTokens`, which
- * also signs the user in.
+ * Provides an API client for the stored server and a TanStack Query cache for it, and keeps the user's
+ * session (spec 10.2). Renders nothing until it has read the stored server URL and tokens.
+ *
+ * Stored tokens sign the user in on launch. The client sends the access token, and when the server
+ * refuses an expired one, refreshes both tokens and retries without asking the user. When the server
+ * refuses the refresh token too, the session is over: the tokens are forgotten and the user is signed out.
  */
 export function ApiProvider({ storage, children }: ApiProviderProps) {
   // Undefined while the stored URL is being read.
@@ -43,19 +46,25 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
 
   useEffect(() => {
     let current = true;
-    // Cannot reject: an unreadable URL counts as none stored.
-    void storage
-      .getServerUrl()
-      .catch(() => null)
-      .then((stored) => {
-        if (current) {
-          setServerUrl(stored);
-        }
-      });
+    // Cannot reject: an unreadable URL or tokens count as none stored.
+    void Promise.all([
+      storage.getServerUrl().catch(() => null),
+      storage.getTokens().catch(() => null),
+    ]).then(([storedUrl, storedTokens]) => {
+      if (!current) {
+        return;
+      }
+      // Tokens belong to a server, so they count only with one.
+      if (storedUrl !== null && storedTokens !== null) {
+        session.set(storedTokens);
+        setSignedIn(true);
+      }
+      setServerUrl(storedUrl);
+    });
     return () => {
       current = false;
     };
-  }, [storage]);
+  }, [storage, session]);
 
   const saveServerUrl = useCallback(
     async (url: string) => {
@@ -74,6 +83,27 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
     [storage, session],
   );
 
+  const storeRefreshedTokens = useCallback(
+    async (response: TokenResponse) => {
+      const refreshed = {
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+      };
+      // In memory first: the client retries with the new access token as soon as this settles. If storing
+      // fails, the app carries on; its next launch finds a used-up refresh token and asks to sign in.
+      session.set(refreshed);
+      await storage.setTokens(refreshed).catch(() => undefined);
+    },
+    [storage, session],
+  );
+
+  const endSession = useCallback(async () => {
+    session.set(null);
+    setSignedIn(false);
+    // Signed out even if the stored tokens cannot be removed: the server refuses them anyway.
+    await storage.clearTokens().catch(() => undefined);
+  }, [storage, session]);
+
   // A client and a new cache for each server, so one server's data never shows for another.
   const api = useMemo(
     () =>
@@ -86,10 +116,15 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
                 : createClient({
                     baseUrl: serverUrl,
                     getAccessToken: () => session.get()?.accessToken,
+                    tokenRefresh: {
+                      getRefreshToken: () => session.get()?.refreshToken,
+                      onTokensRefreshed: storeRefreshedTokens,
+                      onSessionExpired: endSession,
+                    },
                   }),
             queryClient: createQueryClient(),
           },
-    [serverUrl, session],
+    [serverUrl, session, storeRefreshedTokens, endSession],
   );
 
   const context = useMemo(
@@ -139,8 +174,7 @@ export function ApiProvider({ storage, children }: ApiProviderProps) {
 
 /**
  * The session's tokens, outside React state: the client reads them for every request, so a new token is
- * used at once without a re-render. Restoring the stored tokens on launch and refreshing them come with
- * session handling.
+ * used at once without a re-render. Kept in step with the stored tokens.
  */
 function createSessionTokens() {
   let tokens: StoredTokens | null = null;

@@ -6,11 +6,13 @@ import {
   it,
   jest,
 } from "@jest/globals";
+import { unwrap } from "@stockroom/api-client";
+import { useQuery } from "@tanstack/react-query";
 import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { Text } from "react-native";
 
 import { clientVersion } from "@/api/client";
-import { ApiProvider } from "@/api/provider";
+import { ApiProvider, useApiClient } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
 import LoginScreen from "@/app/login";
 import SetupScreen from "@/app/setup";
@@ -46,6 +48,16 @@ afterEach(() => {
   fetch.mockRestore();
 });
 
+/** A stand-in home screen that, like the real one, needs the user to be signed in. */
+function Home() {
+  const client = useApiClient();
+  useQuery({
+    queryKey: ["me"],
+    queryFn: () => unwrap(client.GET("/api/v1/me")),
+  });
+  return <Text>Home</Text>;
+}
+
 /**
  * Renders the app's routes, with the real root stack and screens and a stand-in home screen, and
  * returns a function for the current path.
@@ -57,7 +69,7 @@ async function renderApp(): Promise<() => string> {
         <RootStack />
       </ApiProvider>
     ),
-    index: () => <Text>Home</Text>,
+    index: Home,
     connect: ConnectScreen,
     "update-required": UpdateRequiredScreen,
     setup: SetupScreen,
@@ -112,6 +124,49 @@ describe("RootStack", () => {
 
     expect(await screen.findByText("Home")).toBeOnTheScreen();
     expect(pathname()).toBe("/");
+  });
+
+  it("keeps the user signed in after a restart", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+
+    const pathname = await renderApp();
+
+    expect(screen.getByText("Home")).toBeOnTheScreen();
+    expect(pathname()).toBe("/");
+  });
+
+  it("returns to the login screen when the session has expired", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+    fetch.mockImplementation(async (input) =>
+      new URL((input as Request).url).pathname === "/api/v1/info"
+        ? Response.json(info)
+        : Response.json(
+            {
+              error: {
+                code: "invalid_refresh_token",
+                message: "Refused.",
+                details: null,
+              },
+            },
+            { status: 401 },
+          ),
+    );
+
+    const pathname = await renderApp();
+
+    expect(
+      await screen.findByText("Sign in to https://stock.example.com."),
+    ).toBeOnTheScreen();
+    expect(pathname()).toBe("/login");
+    expect(await storage.getTokens()).toBeNull();
   });
 
   it("goes to the login screen after connecting", async () => {

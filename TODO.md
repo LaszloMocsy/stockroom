@@ -178,7 +178,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I10** — Add the compatibility gate showing "update the app" or "server is outdated" using `checkCompatibility`. _Done when:_ both states are demonstrated with a mocked `/info`.
 - [x] **I11** — Add the first-run setup screen shown when `setup_required` is true (create the initial ADMIN). _Done when:_ completing it creates the ADMIN and then signs in with the same credentials (`/setup` returns the user, not tokens).
 - [x] **I12** — Add the login screen. _Done when:_ successful login stores tokens; failure shows an error.
-- [ ] **I13** — Add session restore and silent refresh: the client's token refresh is wired to the stored tokens, and an expired session returns the user to login. _Done when:_ an app restart keeps the user signed in, and an expired access token is refreshed without a prompt.
+- [x] **I13** — Add session restore and silent refresh: the client's token refresh is wired to the stored tokens, and an expired session returns the user to login. _Done when:_ an app restart keeps the user signed in, and an expired access token is refreshed without a prompt.
 - [ ] **I14** — Add logout and "Change server" (in Settings). _Done when:_ logout revokes the session on the server and clears the tokens; changing the server clears the URL and tokens and returns to the Connect screen.
 - [ ] **I15** — Add the app shell with tab navigation (Home, Products, Scan, Settings). _Done when:_ tabs render for signed-in users only.
 
