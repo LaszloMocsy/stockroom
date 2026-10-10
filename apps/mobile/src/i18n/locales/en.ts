@@ -184,6 +184,25 @@ export const en = {
         "Cannot reach the server. Check your network connection and try again.",
     },
   },
+  attachBarcode: {
+    title: "Attach barcode",
+    intro: "Pick the product that has the barcode {{barcode}}.",
+    noBarcode: "There is no barcode to attach. Scan one first.",
+    confirmTitle: "Attach barcode?",
+    confirmMessage:
+      "Attach {{barcode}} to {{name}} ({{sku}})? Scanning it will then open this product.",
+    attach: "Attach",
+    attaching: "Attaching {{barcode}}…",
+    openOwner: "Open that product",
+    errors: {
+      barcodeTaken: "Another product already has the barcode {{barcode}}.",
+      notFound: "{{name}} no longer exists. Pick another product.",
+      serverError:
+        "The server could not attach the barcode (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   movement: {
     types: {
       receive: "Added",

@@ -195,7 +195,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I21** — Add a reusable barcode scanner component using `expo-camera` with a permission flow. _Done when:_ denied and granted states are handled; scans emit a barcode string once per detection.
 - [x] **I22** — Wire Scan → product lookup → open the product detail. _Done when:_ scanning a known barcode opens the product.
 - [x] **I23** — Add the "Create product" form (name, optional SKU, `min_stock`, barcode, initial quantity), taking an optional barcode as a route parameter. _Done when:_ creating a product lands on its detail screen, with the barcode attached when one was passed.
-- [ ] **I24** — Add "Attach barcode to existing product" (search, pick, confirm), taking the barcode as a route parameter. _Done when:_ the barcode resolves to that product on the next scan.
+- [x] **I24** — Add "Attach barcode to existing product" (search, pick, confirm), taking the barcode as a route parameter. _Done when:_ the barcode resolves to that product on the next scan.
 - [ ] **I25** — Handle unknown barcodes with a sheet offering "Create product" or "Attach to existing". _Done when:_ scanning an unknown barcode shows the sheet, and both options open the I23 and I24 screens with the barcode carried along.
 
 ### I-e. Stock actions
