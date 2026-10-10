@@ -129,7 +129,7 @@ With the dev server running, press <kbd>i</kbd> to open the app in the iOS Simul
 
 The app imports the API client's built output, not its sources, so `pnpm mobile` builds the client first. After changing the client or the OpenAPI snapshot, rebuild it with `pnpm --filter api-client build`; the running dev server picks up the change. Expo configures Metro for the pnpm workspace by itself, so the app has no `metro.config.js`.
 
-Until the app lets you choose a server, it connects to `http://localhost:5278`, which works in the iOS Simulator. Elsewhere, set `EXPO_PUBLIC_API_URL` when starting the dev server, for example `EXPO_PUBLIC_API_URL=http://10.0.2.2:5278 pnpm mobile` for the Android emulator. A phone needs your computer's network address, and the API has to listen on it rather than only on `localhost`. The placeholder screen shows whether it reached the API.
+The app talks to the server whose URL it has stored. Until it stores one, it uses `EXPO_PUBLIC_API_URL`, or in development `http://localhost:5278`, which works in the iOS Simulator. Elsewhere, set `EXPO_PUBLIC_API_URL` when starting the dev server, for example `EXPO_PUBLIC_API_URL=http://10.0.2.2:5278 pnpm mobile` for the Android emulator. A phone needs your computer's network address, and the API has to listen on it rather than only on `localhost`. The placeholder screen shows whether it reached the API.
 
 Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm mobile --clear`, which also clears Metro's cache.
 
@@ -166,7 +166,7 @@ pnpm --filter api-client build
 pnpm --filter mobile test
 ```
 
-Tests sit next to the code they test, as `*.test.ts` or `*.test.tsx`, and import `describe`, `it`, `expect`, and `jest` from `@jest/globals`. Keep them out of `apps/mobile/src/app`, where Expo Router would treat them as screens.
+Tests sit next to the code they test, as `*.test.ts` or `*.test.tsx`, and import `describe`, `it`, `expect`, and `jest` from `@jest/globals`. Keep them out of `apps/mobile/src/app`, where Expo Router would treat them as screens. Components are tested with [React Native Testing Library](https://callstack.github.io/react-native-testing-library/), whose `render` is asynchronous: `await render(...)`. To test a component that calls the API, wrap it in `ApiProvider` with a `MemoryStore`-backed storage and stub `globalThis.fetch`, as in `src/components/server-status.test.tsx`.
 
 ## Change the database schema
 

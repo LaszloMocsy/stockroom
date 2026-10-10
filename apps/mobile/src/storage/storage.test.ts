@@ -1,46 +1,16 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 
-import {
-  createAppStorage,
-  StorageKeys,
-  type AppStorage,
-  type KeyValueStore,
-} from "./storage";
-
-/** An in-memory store that rejects keys the way expo-secure-store does. */
-class FakeStore implements KeyValueStore {
-  readonly items = new Map<string, string>();
-
-  async getItem(key: string) {
-    FakeStore.check(key);
-    return this.items.get(key) ?? null;
-  }
-
-  async setItem(key: string, value: string) {
-    FakeStore.check(key);
-    this.items.set(key, value);
-  }
-
-  async deleteItem(key: string) {
-    FakeStore.check(key);
-    this.items.delete(key);
-  }
-
-  private static check(key: string) {
-    if (!/^[\w.-]+$/.test(key)) {
-      throw new Error(`Invalid key "${key}"`);
-    }
-  }
-}
+import { MemoryStore } from "./memory-store";
+import { createAppStorage, StorageKeys, type AppStorage } from "./storage";
 
 const tokens = { accessToken: "access-1", refreshToken: "refresh-1" };
 
 describe("app storage", () => {
-  let store: FakeStore;
+  let store: MemoryStore;
   let storage: AppStorage;
 
   beforeEach(() => {
-    store = new FakeStore();
+    store = new MemoryStore();
     storage = createAppStorage(store);
   });
 
