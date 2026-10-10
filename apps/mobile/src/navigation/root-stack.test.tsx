@@ -217,6 +217,8 @@ describe("RootStack", () => {
           return Response.json({ items: [product], next_cursor: null });
         case `/api/v1/products/${product.id}`:
           return Response.json(product);
+        case "/api/v1/stock/movements":
+          return Response.json({ items: [], next_cursor: null });
         default:
           return Response.json(info);
       }

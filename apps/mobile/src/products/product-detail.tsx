@@ -3,14 +3,16 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
 import { LoadError } from "@/components/load-error";
+import { MovementRow } from "@/stock/movement-row";
+import { useProductMovements } from "@/stock/use-movements";
 
 import { StockBadge } from "./stock-badge";
 import { stockStatus } from "./stock-status";
@@ -18,22 +20,47 @@ import { useProduct } from "./use-products";
 
 /**
  * A product (spec 3.1): its name, SKU, barcodes, units on hand, and minimum, with a badge when it is low
- * on or out of stock. Pulling down reloads it.
+ * on or out of stock, followed by its stock history, newest first (spec 5, flow 6). More history loads
+ * as the user scrolls towards the end; pulling down reloads the product and its history.
  */
 export function ProductDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const product = useProduct(id);
+  const movements = useProductMovements(id);
   const [refreshing, setRefreshing] = useState(false);
+
+  const items = movements.data?.pages.flatMap((page) => page.items) ?? [];
+  // A void comes after the movement it reverses, so it is on the same page or an earlier one.
+  const voided = new Set(
+    items.flatMap((movement) => movement.voids_movement_id ?? []),
+  );
+
+  const loadMore = () => {
+    if (
+      movements.hasNextPage &&
+      !movements.isFetchingNextPage &&
+      !movements.isFetchNextPageError
+    ) {
+      void movements.fetchNextPage();
+    }
+  };
 
   const refresh = async () => {
     setRefreshing(true);
-    await product.refetch();
+    await Promise.all([product.refetch(), movements.refetch()]);
     setRefreshing(false);
   };
 
   let content;
   if (product.data) {
-    content = <Details product={product.data} />;
+    content = (
+      <>
+        <Details product={product.data} />
+        <Text role="heading" style={styles.heading}>
+          {t("product.historyHeading")}
+        </Text>
+      </>
+    );
   } else if (
     product.error instanceof ApiResponseError &&
     product.error.status === 404
@@ -55,20 +82,55 @@ export function ProductDetail({ id }: { id: string }) {
     content = <ActivityIndicator />;
   }
 
+  let history = null;
+  if (!product.data) {
+    // Nothing below an error or a product that is still loading.
+  } else if (movements.data) {
+    history = <Text style={styles.text}>{t("product.noHistory")}</Text>;
+  } else if (movements.error) {
+    history = (
+      <LoadError
+        message={t("product.historyFailed")}
+        retry={() => void movements.refetch()}
+        retrying={movements.isFetching}
+      />
+    );
+  } else {
+    history = <ActivityIndicator />;
+  }
+
   return (
-    <ScrollView
+    <FlatList
       contentContainerStyle={styles.container}
       contentInsetAdjustmentBehavior="automatic"
+      data={product.data ? items : []}
+      keyExtractor={(movement) => movement.id}
+      ListEmptyComponent={history}
+      ListFooterComponent={
+        movements.isFetchNextPageError ? (
+          <LoadError
+            message={t("product.moreHistoryFailed")}
+            retry={() => void movements.fetchNextPage()}
+            retrying={movements.isFetchingNextPage}
+          />
+        ) : movements.isFetchingNextPage ? (
+          <ActivityIndicator />
+        ) : null
+      }
+      ListHeaderComponent={<View style={styles.header}>{content}</View>}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
           onRefresh={() => void refresh()}
           refreshing={refreshing}
         />
       }
+      renderItem={({ item }) => (
+        <MovementRow movement={item} voided={voided.has(item.id)} />
+      )}
       testID="product"
-    >
-      {content}
-    </ScrollView>
+    />
   );
 }
 
@@ -134,8 +196,15 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 24,
     padding: 24,
+  },
+  header: {
+    gap: 24,
+    paddingBottom: 8,
+  },
+  heading: {
+    fontSize: 20,
+    fontWeight: "600",
   },
   section: {
     gap: 8,

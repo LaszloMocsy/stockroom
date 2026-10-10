@@ -33,21 +33,71 @@ const cableTies: Schema<"ProductResponse"> = {
 
 let fetch: jest.SpiedFunction<typeof globalThis.fetch>;
 
+let productResponse: () => Response;
+let movementsResponse: (url: URL) => Response;
+
 /** Answers `GET /products/{id}` with this response. */
 function serve(response: () => Response) {
-  fetch.mockImplementation(async (input) =>
-    new URL((input as Request).url).pathname === `/api/v1/products/${id}`
-      ? response()
-      : Response.json({}, { status: 500 }),
-  );
+  productResponse = response;
 }
 
 const serveProduct = (changes: Partial<Schema<"ProductResponse">> = {}) =>
   serve(() => Response.json({ ...cableTies, ...changes }));
 
+/** Answers the product's movements like the API: two to a page, with the next one's index as the cursor. */
+function serveMovements(movements: Schema<"StockMovementResponse">[]) {
+  movementsResponse = (url) => {
+    const start = Number(url.searchParams.get("cursor") ?? 0);
+    const end = start + 2;
+    return Response.json({
+      items: movements.slice(start, end),
+      next_cursor: end < movements.length ? String(end) : null,
+    });
+  };
+}
+
+function movement(
+  changes: Partial<Schema<"StockMovementResponse">>,
+): Schema<"StockMovementResponse"> {
+  return {
+    id: crypto.randomUUID(),
+    product_id: id,
+    product_sku: cableTies.sku,
+    product_name: cableTies.name,
+    type: "receive",
+    delta: 5,
+    quantity_after: 5,
+    reason: "purchase",
+    note: null,
+    reference: null,
+    voids_movement_id: null,
+    actor_id: "6f1c1a52-8a1e-4c63-9a54-1e1f4b8f2d10",
+    actor_name: "Anna Admin",
+    created_at: "2026-10-01T08:00:00Z",
+    ...changes,
+  };
+}
+
+const errorResponse = () =>
+  Response.json(
+    { error: { code: "bad_request", message: "Bad.", details: null } },
+    { status: 400 },
+  );
+
 beforeEach(() => {
-  fetch = jest.spyOn(globalThis, "fetch");
+  fetch = jest.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = new URL((input as Request).url);
+    switch (url.pathname) {
+      case `/api/v1/products/${id}`:
+        return productResponse();
+      case "/api/v1/stock/movements":
+        return movementsResponse(url);
+      default:
+        return Response.json({}, { status: 500 });
+    }
+  });
   serveProduct();
+  serveMovements([]);
 });
 
 afterEach(() => {
@@ -177,6 +227,122 @@ describe("ProductDetail", () => {
     await act(() => refreshControl.props.onRefresh());
 
     expect(await screen.findByText("12")).toBeOnTheScreen();
+  });
+
+  describe("history", () => {
+    const received = movement({
+      type: "receive",
+      delta: 12,
+      quantity_after: 12,
+      reason: "purchase",
+      note: "Delivery 4711",
+      actor_name: "Anna Admin",
+    });
+    const removed = movement({
+      type: "issue",
+      delta: -10,
+      quantity_after: 2,
+      reason: "damaged",
+      actor_name: "Sam Staff",
+    });
+    const counted = movement({
+      type: "adjust",
+      delta: -1,
+      quantity_after: 1,
+      reason: "count",
+    });
+    const voidOfRemoved = movement({
+      type: "void",
+      delta: 10,
+      quantity_after: 11,
+      reason: "correction",
+      voids_movement_id: removed.id,
+    });
+
+    it("lists who changed the stock, how, by how much, and why, newest first", async () => {
+      serveMovements([removed, received]);
+
+      await renderDetail();
+
+      expect(await screen.findByText("History")).toBeOnTheScreen();
+      expect(await screen.findByText("Removed")).toBeOnTheScreen();
+      expect(screen.getByText("−10")).toBeOnTheScreen();
+      expect(screen.getByText("Damaged · Sam Staff")).toBeOnTheScreen();
+      expect(screen.getByText("Added")).toBeOnTheScreen();
+      expect(screen.getByText("+12")).toBeOnTheScreen();
+      expect(screen.getByText("Purchase · Anna Admin")).toBeOnTheScreen();
+      expect(screen.getByText("Delivery 4711")).toBeOnTheScreen();
+
+      const requests = fetch.mock.calls
+        .map(([input]) => new URL((input as Request).url))
+        .filter((url) => url.pathname === "/api/v1/stock/movements");
+      expect(requests.map((url) => url.search)).toEqual([`?product=${id}`]);
+    });
+
+    it("marks a movement that a later one voided", async () => {
+      serveMovements([voidOfRemoved, removed]);
+
+      await renderDetail();
+
+      expect(await screen.findByText("Removed (voided)")).toBeOnTheScreen();
+      expect(screen.getByText("Void")).toBeOnTheScreen();
+    });
+
+    it("loads more as the user scrolls to the end", async () => {
+      serveMovements([voidOfRemoved, counted, removed, received]);
+      await renderDetail();
+      await screen.findByText("Count set");
+      expect(screen.queryByText("Added")).toBeNull();
+
+      await fireEvent(screen.getByTestId("product"), "endReached");
+
+      expect(await screen.findByText("Added")).toBeOnTheScreen();
+      expect(screen.getByText("Removed (voided)")).toBeOnTheScreen();
+    });
+
+    it("says when there is no history", async () => {
+      await renderDetail();
+
+      expect(
+        await screen.findByText("No stock movements yet."),
+      ).toBeOnTheScreen();
+    });
+
+    it("shows an error when the history fails to load, and tries again", async () => {
+      movementsResponse = errorResponse;
+      await renderDetail();
+
+      expect(
+        await screen.findByText("The history could not be loaded."),
+      ).toBeOnTheScreen();
+      // The product itself still shows.
+      expect(screen.getByText("WRK-CBT-200")).toBeOnTheScreen();
+
+      serveMovements([received]);
+      await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+      expect(await screen.findByText("Added")).toBeOnTheScreen();
+    });
+
+    it("keeps the loaded history when the next page fails, and tries again", async () => {
+      serveMovements([voidOfRemoved, counted, removed, received]);
+      await renderDetail();
+      await screen.findByText("Count set");
+      const all = movementsResponse;
+      movementsResponse = errorResponse;
+
+      await fireEvent(screen.getByTestId("product"), "endReached");
+
+      expect(
+        await screen.findByText("More history could not be loaded."),
+      ).toBeOnTheScreen();
+      expect(screen.getByText("Count set")).toBeOnTheScreen();
+
+      movementsResponse = all;
+      await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+      expect(await screen.findByText("Added")).toBeOnTheScreen();
+    });
   });
 
   it("takes its text from translation keys", async () => {
