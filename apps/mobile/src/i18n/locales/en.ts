@@ -127,7 +127,17 @@ export const en = {
     retrying: "Loading…",
   },
   products: {
-    comingSoon: "Your products will be listed here.",
+    searchLabel: "Search",
+    searchPlaceholder: "Name, SKU, or barcode",
+    quantity: "{{quantity, number}} on hand",
+    quantityLow: "{{quantity, number}} on hand, low on stock",
+    outOfStock: "Out of stock",
+    none: "There are no products yet.",
+    noMatches: "No products match “{{search}}”.",
+    loadFailed: "The products could not be loaded.",
+    loadMoreFailed: "More products could not be loaded.",
+    retry: "Try again",
+    retrying: "Loading…",
   },
   scan: {
     comingSoon: "Scanning barcodes will be here.",

@@ -169,11 +169,16 @@ describe("RootStack", () => {
       ).toBeOnTheScreen();
     }
 
+    fetch.mockImplementation(async (input) =>
+      new URL((input as Request).url).pathname === "/api/v1/products"
+        ? Response.json({ items: [], next_cursor: null })
+        : Response.json(info),
+    );
     await fireEvent.press(
       screen.getByRole("button", { name: tabName("Products") }),
     );
     expect(
-      await screen.findByText("Your products will be listed here."),
+      await screen.findByText("There are no products yet."),
     ).toBeOnTheScreen();
     expect(pathname()).toBe("/products");
 
