@@ -159,6 +159,30 @@ export const en = {
     moreHistoryFailed: "More history could not be loaded.",
     loadFailed: "The product could not be loaded.",
   },
+  createProduct: {
+    title: "New product",
+    nameLabel: "Name",
+    skuLabel: "SKU (optional)",
+    skuHint: "Leave empty to have one generated.",
+    minStockLabel: "Minimum stock (optional)",
+    minStockHint: "The product counts as low on stock at or below this.",
+    barcodeLabel: "Barcode (optional)",
+    initialQuantityLabel: "Units on hand (optional)",
+    initialQuantityHint: "How many you have now. Leave empty for none.",
+    submit: "Create product",
+    submitting: "Creating product…",
+    errors: {
+      required: "This is required.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooLarge: "Enter at most {{max, number}}.",
+      skuTaken: "Another product already has this SKU.",
+      barcodeTaken: "Another product already has this barcode.",
+      serverError:
+        "The server could not create the product (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   movement: {
     types: {
       receive: "Added",

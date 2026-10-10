@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, Text, type TextInput } from "react-native";
 
+import { serverFieldErrors } from "@/api/field-errors";
 import { useApiClient } from "@/api/provider";
 import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
@@ -77,7 +78,7 @@ export function SetupForm() {
   });
 
   const clientErrors = validateSetup(values);
-  const serverErrors = setup.error ? serverFieldErrors(setup.error) : {};
+  const serverErrors = serverFieldErrors(setup.error, ServerFieldNames);
   const fieldError = (field: SetupField): string | undefined => {
     const clientError = submitted ? clientErrors[field] : undefined;
     return clientError
@@ -201,36 +202,6 @@ const ServerFieldNames: Record<string, SetupField> = {
   password: "password",
 };
 
-/**
- * The server's messages for the fields it refused, from `details.fields` of a `validation_failed` error.
- * They are the server's English text: the form checks the common cases itself, in the user's language.
- */
-function serverFieldErrors(error: Error): Partial<Record<SetupField, string>> {
-  if (
-    !(error instanceof ApiResponseError) ||
-    error.code !== "validation_failed"
-  ) {
-    return {};
-  }
-  const { details } = error;
-  const fields =
-    typeof details === "object" && details !== null && "fields" in details
-      ? details.fields
-      : null;
-  if (typeof fields !== "object" || fields === null) {
-    return {};
-  }
-
-  const errors: Partial<Record<SetupField, string>> = {};
-  for (const [name, messages] of Object.entries(fields)) {
-    const field = ServerFieldNames[name];
-    if (field && Array.isArray(messages) && typeof messages[0] === "string") {
-      errors[field] = messages[0];
-    }
-  }
-  return errors;
-}
-
 /** The error to show for the whole form, or null when the fields show it. */
 function formErrorText(error: Error, t: TFunction): string | null {
   if (!(error instanceof ApiResponseError)) {
@@ -242,7 +213,7 @@ function formErrorText(error: Error, t: TFunction): string | null {
   if (error.status === 429) {
     return t("setup.errors.rateLimited");
   }
-  if (Object.keys(serverFieldErrors(error)).length > 0) {
+  if (Object.keys(serverFieldErrors(error, ServerFieldNames)).length > 0) {
     return null;
   }
   return t("setup.errors.serverError", { status: String(error.status) });

@@ -33,6 +33,10 @@ export function RootStack() {
           options={{ title: t("product.title") }}
         />
         <Stack.Screen
+          name="product/new"
+          options={{ title: t("createProduct.title") }}
+        />
+        <Stack.Screen
           name="low-stock"
           options={{ title: t("lowStock.title") }}
         />
