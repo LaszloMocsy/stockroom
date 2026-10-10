@@ -38,7 +38,6 @@ function ServerInfo({ serverUrl }: { serverUrl: string }) {
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 14,
-    textAlign: "center",
+    fontSize: 16,
   },
 });

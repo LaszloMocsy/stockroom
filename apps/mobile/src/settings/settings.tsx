@@ -11,6 +11,7 @@ import {
   useSignOut,
 } from "@/api/provider";
 import { Button } from "@/components/button";
+import { ServerStatus } from "@/components/server-status";
 
 type Action = "signOut" | "changeServer";
 
@@ -84,7 +85,7 @@ export function Settings() {
         <Text role="heading" style={styles.heading}>
           {t("settings.serverHeading")}
         </Text>
-        <Text style={styles.text}>{serverUrl}</Text>
+        <ServerStatus />
         <Button
           busy={pending === "changeServer"}
           onPress={confirmChangeServer}
