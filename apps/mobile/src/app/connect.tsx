@@ -10,7 +10,7 @@ export default function ConnectScreen() {
   return (
     <>
       <Stack.Screen options={{ title: t("connect.title") }} />
-      <ConnectForm initialAddress={defaultServerUrl} />
+      <ConnectForm initialAddress={defaultServerUrl} allowHttp={__DEV__} />
     </>
   );
 }

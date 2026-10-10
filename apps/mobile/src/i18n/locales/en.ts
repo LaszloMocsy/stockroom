@@ -17,6 +17,7 @@ export const en = {
     errors: {
       malformed:
         "This is not a server address. Enter one like stock.example.com or https://stock.example.com.",
+      insecure: "{{url}} is not encrypted. Use the server's https:// address.",
       unreachable:
         "Cannot reach {{url}}. Check the address and your network connection.",
       serverError:

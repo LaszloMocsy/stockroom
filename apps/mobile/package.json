@@ -17,6 +17,7 @@
     "@stockroom/api-client": "workspace:*",
     "@tanstack/react-query": "^5.104.1",
     "expo": "~57.0.27",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.21",
     "expo-linking": "~57.0.12",
     "expo-localization": "~57.0.2",

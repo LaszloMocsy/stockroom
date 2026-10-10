@@ -174,7 +174,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 ### I-b. Connect and sign in
 
 - [x] **I8** — Add the "Connect to server" screen: URL input, normalisation, and `/info` validation, saving the URL on success. _Done when:_ malformed URLs, unreachable servers, and servers that are not Stockroom (a bad `/info` response) show clear errors.
-- [ ] **I9** — Refuse `http://` servers except `localhost` and development builds, and allow cleartext traffic on Android only in the development profile. _Done when:_ the rule is unit tested, and a release build's configuration does not allow cleartext.
+- [x] **I9** — Refuse `http://` servers except `localhost` and development builds, and allow cleartext traffic on Android only in the development profile. _Done when:_ the rule is unit tested, and a release build's configuration does not allow cleartext.
 - [ ] **I10** — Add the compatibility gate showing "update the app" or "server is outdated" using `checkCompatibility`. _Done when:_ both states are demonstrated with a mocked `/info`.
 - [ ] **I11** — Add the first-run setup screen shown when `setup_required` is true (create the initial ADMIN). _Done when:_ completing it creates the ADMIN and then signs in with the same credentials (`/setup` returns the user, not tokens).
 - [ ] **I12** — Add the login screen. _Done when:_ successful login stores tokens; failure shows an error.

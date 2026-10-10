@@ -5,6 +5,7 @@ import { createClient } from "@/api/client";
 /**
  * Why the app cannot connect to a server:
  * - `malformed`: what the user typed is not a server address.
+ * - `insecure`: the address is `http://`, which this build refuses for servers other than `localhost`.
  * - `unreachable`: no answer, because of the network, a wrong address, or a timeout.
  * - `server_error`: the server, or a proxy in front of it, answered with a 5xx; it may work later.
  * - `not_stockroom`: something answered, but not with a Stockroom server's `/info`.
@@ -12,6 +13,7 @@ import { createClient } from "@/api/client";
  */
 export type ConnectFailure =
   | "malformed"
+  | "insecure"
   | "unreachable"
   | "server_error"
   | "not_stockroom"

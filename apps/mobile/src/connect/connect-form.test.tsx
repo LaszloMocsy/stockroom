@@ -47,10 +47,13 @@ function CurrentServer() {
   return <Text testID="current-server">{useServerUrl() ?? "none"}</Text>;
 }
 
-async function renderForm(initialAddress: string | null = null) {
+async function renderForm({
+  initialAddress = null,
+  allowHttp = false,
+}: { initialAddress?: string | null; allowHttp?: boolean } = {}) {
   await render(
     <ApiProvider storage={storage}>
-      <ConnectForm initialAddress={initialAddress} />
+      <ConnectForm initialAddress={initialAddress} allowHttp={allowHttp} />
       <CurrentServer />
     </ApiProvider>,
   );
@@ -83,7 +86,7 @@ describe("ConnectForm", () => {
   });
 
   it("starts with the initial address", async () => {
-    await renderForm("http://localhost:5278");
+    await renderForm({ initialAddress: "http://localhost:5278" });
 
     expect(
       await screen.findByDisplayValue("http://localhost:5278"),
@@ -102,6 +105,38 @@ describe("ConnectForm", () => {
     ).toBeOnTheScreen();
     expect(fetch).not.toHaveBeenCalled();
     expect(screen.getByTestId("current-server")).toHaveTextContent("none");
+  });
+
+  it("refuses an http:// server without a request", async () => {
+    await renderForm();
+
+    await connectTo("http://stock.example.com");
+
+    expect(
+      await screen.findByText(
+        "http://stock.example.com is not encrypted. Use the server's https:// address.",
+      ),
+    ).toBeOnTheScreen();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(store.items.has(StorageKeys.serverUrl)).toBe(false);
+  });
+
+  it("accepts an http:// server on this device", async () => {
+    await renderForm();
+
+    await connectTo("http://localhost:5278");
+
+    expect(await screen.findByText("http://localhost:5278")).toBeOnTheScreen();
+  });
+
+  it("accepts any http:// server where HTTP is allowed", async () => {
+    await renderForm({ allowHttp: true });
+
+    await connectTo("http://192.168.1.20:5278");
+
+    expect(
+      await screen.findByText("http://192.168.1.20:5278"),
+    ).toBeOnTheScreen();
   });
 
   it("says when the server cannot be reached", async () => {

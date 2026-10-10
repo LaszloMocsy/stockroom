@@ -13,11 +13,13 @@ import {
 import { useSaveServerUrl } from "@/api/provider";
 
 import { checkServer, ConnectError } from "./check-server";
-import { normaliseServerUrl } from "./server-url";
+import { isAllowedServerUrl, normaliseServerUrl } from "./server-url";
 
 export interface ConnectFormProps {
   /** The address to start with, for example a development server's. */
   initialAddress: string | null;
+  /** Whether to accept `http://` servers other than `localhost`; only development builds do. */
+  allowHttp: boolean;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface ConnectFormProps {
  * Not a TanStack Query mutation: one belongs to the query client of the server it started on, which
  * connecting replaces.
  */
-export function ConnectForm({ initialAddress }: ConnectFormProps) {
+export function ConnectForm({ initialAddress, allowHttp }: ConnectFormProps) {
   const { t } = useTranslation();
   const saveServerUrl = useSaveServerUrl();
   const [address, setAddress] = useState(initialAddress ?? "");
@@ -41,7 +43,7 @@ export function ConnectForm({ initialAddress }: ConnectFormProps) {
     setPending(true);
     setError(null);
     try {
-      await connect(address, saveServerUrl);
+      await connect(address, allowHttp, saveServerUrl);
     } catch (caught) {
       // connect throws only ConnectError.
       setError(caught as ConnectError);
@@ -107,17 +109,22 @@ export function ConnectForm({ initialAddress }: ConnectFormProps) {
 }
 
 /**
- * Normalises the address, checks that a Stockroom server answers there, and stores its URL.
+ * Normalises the address, refuses `http://` unless allowed, checks that a Stockroom server answers
+ * there, and stores its URL.
  *
  * @throws {ConnectError} When any of these fails.
  */
 async function connect(
   address: string,
+  allowHttp: boolean,
   saveServerUrl: (url: string) => Promise<void>,
 ): Promise<void> {
   const url = normaliseServerUrl(address);
   if (!url) {
     throw new ConnectError("malformed");
+  }
+  if (!isAllowedServerUrl(url, allowHttp)) {
+    throw new ConnectError("insecure", url);
   }
   await checkServer(url);
   try {
@@ -132,6 +139,8 @@ function errorText(error: ConnectError, t: TFunction): string {
   switch (error.reason) {
     case "malformed":
       return t("connect.errors.malformed");
+    case "insecure":
+      return t("connect.errors.insecure", { url });
     case "unreachable":
       return t("connect.errors.unreachable", { url });
     case "server_error":
