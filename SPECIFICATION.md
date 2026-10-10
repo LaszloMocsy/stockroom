@@ -2,8 +2,8 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.8                                              |
-| **Date**    | 2026-10-09                                              |
+| **Status**  | Draft v0.9                                              |
+| **Date**    | 2026-10-10                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
 > This document is versioned in itself. See the [Changelog](#19-changelog) at the bottom for what changed in each revision.
@@ -34,7 +34,7 @@ The first milestone is a demo for the first prospective user. It is deliberately
 
 - **Mobile app (primary):** connect to a server, log in, scan or search a product, add stock, remove stock, set a counted quantity, create a product from an unknown barcode, see low-stock items.
 - **Backend:** products, ledger-based stock, barcode lookup, ADMIN and STAFF roles, CSV export.
-- **Minimal web app:** log in, read-only product and stock list with search, a product detail page with its movement history, and CSV download. Its purpose is to show that a web app exists and where it is going.
+- **Minimal web app:** first-run setup, log in, read-only product and stock list with search, a product detail page with its movement history, CSV download, and a small ADMIN users page (create STAFF users, reset passwords), because the mobile app has no user admin. Its purpose is to show that a web app exists and where it is going.
 
 Target size: a **small-to-medium warehouse**. Quantities are **whole-number counts only**; weights, volumes, and pack conversions are out of scope for now.
 
@@ -390,7 +390,7 @@ Later: locations, categories, transfers, batches, audit, import, reports, API to
 
 Conventions:
 
-- Cursor-based pagination: a list responds with `{ items, next_cursor }`, where `next_cursor` is `null` on the last page. Lists that are not paged yet return everything in one page. Consistent error envelope `{ error: { code, message, details } }` with stable machine-readable `code` values.
+- Cursor-based pagination: a list responds with `{ items, next_cursor }`, where `next_cursor` is `null` on the last page. Lists that are not paged yet return everything in one page. Stock movements carry the actor's display name and the product's SKU and name next to their public IDs, so a STAFF client (which cannot list users) needs no extra lookups. Consistent error envelope `{ error: { code, message, details } }` with stable machine-readable `code` values.
 - `Idempotency-Key` header supported on all stock-mutating endpoints.
 - Rate limiting on auth endpoints.
 - Quantities are JSON integers.
@@ -440,7 +440,7 @@ Every self-hosted server runs its own version, while the mobile app is a single 
 - `POST /api/v1/auth/refresh` uses up the presented refresh token and returns a new access and refresh token in the same session. Presenting a used refresh token again (a stolen copy or a replay) revokes the whole session, and its device has to log in again.
 - A password reset by an ADMIN revokes all of the user's sessions and clears any login lockout.
 - `POST /api/v1/auth/logout` takes the device's refresh token and revokes its session. Access tokens are not tracked, so one stays valid until it expires; clients discard it.
-- Mobile stores tokens in `expo-secure-store`. Web keeps the access token in memory and the refresh token in an `httpOnly` cookie scoped to the auth endpoints, or in secure storage, to be decided at implementation time.
+- Mobile stores tokens in `expo-secure-store`. Web keeps the access token in memory and the refresh token in `localStorage`, so a reload keeps the user signed in (decision D13). The web image sends a strict Content-Security-Policy to limit the exposure to script injection.
 - Authorisation is enforced on the server for every request using the `ADMIN`/`STAFF` role claim. Clients hide controls for UX only.
 
 ## 11. Security
@@ -559,30 +559,31 @@ A managed offering for non-technical customers is planned and is **not** a separ
 
 ## 15. Roadmap
 
-| Milestone            | Scope                                                                                                                                                                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **M0 — Foundations** | Monorepo, tooling, CI, PostgreSQL schema + migrations, auth, OpenAPI → generated client, Docker images.                                                                                                                 |
-| **M1 — MVP demo**    | Backend as in [1.2](#12-scope-of-the-first-demo-mvp); **mobile app** with scan/add/remove/set-count/create-product; **minimal web app** (read-only lists, product history, CSV). It is usable on a phone.               |
-| **M2 — v1.0**        | Full web app (create/edit, user admin, stats and reports), locations and transfers, categories/tags, low-stock notifications, audit event log, CSV import, batch and count sessions, images, backups, i18n, API tokens. |
-| **M3 — Polish**      | Managed-hosting template, offline queue on mobile, label printing, OIDC, 2FA, tamper-evident audit chain, store release.                                                                                                |
-| **Later**            | Units of measure and decimals, variants, lots/expiry, reservations, read-only role, webhook ecosystem.                                                                                                                  |
+| Milestone            | Scope                                                                                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M0 — Foundations** | Monorepo, tooling, CI, PostgreSQL schema + migrations, auth, OpenAPI → generated client, Docker images.                                                                                                                            |
+| **M1 — MVP demo**    | Backend as in [1.2](#12-scope-of-the-first-demo-mvp); **mobile app** with scan/add/remove/set-count/create-product; **minimal web app** (read-only lists, product history, CSV, setup, basic users page). It is usable on a phone. |
+| **M2 — v1.0**        | Full web app (create/edit, full user management, stats and reports), locations and transfers, categories/tags, low-stock notifications, audit event log, CSV import, batch and count sessions, images, backups, i18n, API tokens.  |
+| **M3 — Polish**      | Managed-hosting template, offline queue on mobile, label printing, OIDC, 2FA, tamper-evident audit chain, store release.                                                                                                           |
+| **Later**            | Units of measure and decimals, variants, lots/expiry, reservations, read-only role, webhook ecosystem.                                                                                                                             |
 
 ## 16. Decisions and Rationale
 
-| #   | Decision                                                    | Rationale                                                                                               |
-| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| D1  | License: **AGPL-3.0**                                       | Keeps the project community-owned; a closed-source hosted fork would have to publish its changes.       |
-| D2  | Target: small-to-medium warehouse, whole-number counts only | Keeps the MVP small; units and decimals can be added later without changing the ledger concept.         |
-| D3  | Two roles: ADMIN and STAFF                                  | Sufficient for the first customer; fewer permission paths to test.                                      |
-| D4  | Mobile-first (Expo), minimal web app in the MVP             | Daily use is on phones with barcode scanning; the web app shows the direction without doubling UI work. |
-| D5  | .NET backend, single instance per organisation              | Single source of truth, simple operations, strong concurrency primitives.                               |
-| D6  | PostgreSQL only                                             | Concurrent ledger writes and managed-platform support; avoids a two-database test matrix.               |
-| D7  | Vite SPA rather than Next.js                                | No SSR/SEO need; static output is easiest to self-host.                                                 |
-| D8  | OpenAPI-generated TypeScript client                         | Replaces shared Zod schemas across the .NET/TypeScript boundary; the backend is the contract.           |
-| D9  | Bearer + refresh tokens instead of cookie sessions          | Works identically on mobile and web.                                                                    |
-| D10 | Explicit version handshake between apps and server          | Self-hosted servers and store apps update independently.                                                |
-| D11 | S3-compatible storage behind an abstraction, local fallback | Self-hosters need zero extra services; managed hosting can use Railway Buckets or any S3 provider.      |
-| D12 | Managed hosting: operator-owned Railway account, resold     | The customer needs no infrastructure knowledge. No billing system until there is a second customer.     |
+| #   | Decision                                                    | Rationale                                                                                                                |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| D1  | License: **AGPL-3.0**                                       | Keeps the project community-owned; a closed-source hosted fork would have to publish its changes.                        |
+| D2  | Target: small-to-medium warehouse, whole-number counts only | Keeps the MVP small; units and decimals can be added later without changing the ledger concept.                          |
+| D3  | Two roles: ADMIN and STAFF                                  | Sufficient for the first customer; fewer permission paths to test.                                                       |
+| D4  | Mobile-first (Expo), minimal web app in the MVP             | Daily use is on phones with barcode scanning; the web app shows the direction without doubling UI work.                  |
+| D5  | .NET backend, single instance per organisation              | Single source of truth, simple operations, strong concurrency primitives.                                                |
+| D6  | PostgreSQL only                                             | Concurrent ledger writes and managed-platform support; avoids a two-database test matrix.                                |
+| D7  | Vite SPA rather than Next.js                                | No SSR/SEO need; static output is easiest to self-host.                                                                  |
+| D8  | OpenAPI-generated TypeScript client                         | Replaces shared Zod schemas across the .NET/TypeScript boundary; the backend is the contract.                            |
+| D9  | Bearer + refresh tokens instead of cookie sessions          | Works identically on mobile and web.                                                                                     |
+| D10 | Explicit version handshake between apps and server          | Self-hosted servers and store apps update independently.                                                                 |
+| D11 | S3-compatible storage behind an abstraction, local fallback | Self-hosters need zero extra services; managed hosting can use Railway Buckets or any S3 provider.                       |
+| D12 | Managed hosting: operator-owned Railway account, resold     | The customer needs no infrastructure knowledge. No billing system until there is a second customer.                      |
+| D13 | Web refresh token in `localStorage`, with a strict CSP      | Keeps the user signed in across reloads with no server-side cookie support; an `httpOnly` cookie is reconsidered for M2. |
 
 ## 17. Open Questions
 
@@ -593,7 +594,6 @@ A managed offering for non-technical customers is planned and is **not** a separ
 5. **Connectivity:** is Wi-Fi reliable throughout the storage space? (If not, the offline queue moves up the roadmap.)
 6. **Managed hosting model:** account ownership is decided (operator-owned, D12). Still open: pricing, billing, and support commitments if the service is offered beyond the first customer.
 7. **Contributor terms:** DCO sign-off versus a CLA under AGPL-3.0.
-8. **Web token storage:** in-memory access token plus `httpOnly` refresh cookie versus secure storage (decide at implementation).
 
 ## 18. Glossary
 
@@ -609,6 +609,12 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.9 — 2026-10-10
+
+- **Web app scope:** the minimal web app also has first-run setup and a basic ADMIN users page, because the mobile app has no user admin (sections 1.2, 15).
+- **Web tokens:** decided D13: the refresh token lives in `localStorage` behind a strict CSP; the cookie option and open question 8 are dropped (sections 10.2, 16, 17).
+- **Movements:** responses carry the actor's display name and the product's SKU and name (section 10).
 
 ### v0.8 — 2026-10-09
 
