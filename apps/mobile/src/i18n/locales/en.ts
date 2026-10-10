@@ -127,6 +127,7 @@ export const en = {
   products: {
     searchLabel: "Search",
     searchPlaceholder: "Name, SKU, or barcode",
+    newProduct: "New product",
     none: "There are no products yet.",
     noMatches: "No products match “{{search}}”.",
     loadFailed: "The products could not be loaded.",
