@@ -5,10 +5,18 @@ export interface ButtonProps {
   onPress: () => void;
   /** Shows a spinner and ignores presses while the action it started runs. */
   busy?: boolean;
+  /** `primary` for a screen's main action, `secondary` for the others. */
+  variant?: "primary" | "secondary";
 }
 
-/** The app's primary button: full width, with a large touch target (spec 6). */
-export function Button({ title, onPress, busy = false }: ButtonProps) {
+/** The app's button: full width, with a large touch target (spec 6). */
+export function Button({
+  title,
+  onPress,
+  busy = false,
+  variant = "primary",
+}: ButtonProps) {
+  const secondary = variant === "secondary";
   return (
     <Pressable
       accessibilityState={{ disabled: busy, busy }}
@@ -17,11 +25,14 @@ export function Button({ title, onPress, busy = false }: ButtonProps) {
       role="button"
       style={({ pressed }) => [
         styles.button,
+        secondary && styles.secondaryButton,
         (pressed || busy) && styles.dimmed,
       ]}
     >
-      {busy && <ActivityIndicator color="#ffffff" />}
-      <Text style={styles.title}>{title}</Text>
+      {busy && <ActivityIndicator color={secondary ? "#0a5cc2" : "#ffffff"} />}
+      <Text style={[styles.title, secondary && styles.secondaryTitle]}>
+        {title}
+      </Text>
     </Pressable>
   );
 }
@@ -36,6 +47,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#0a5cc2",
   },
+  secondaryButton: {
+    borderWidth: 2,
+    borderColor: "#0a5cc2",
+    backgroundColor: "transparent",
+  },
   dimmed: {
     opacity: 0.7,
   },
@@ -43,5 +59,8 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  secondaryTitle: {
+    color: "#0a5cc2",
   },
 });

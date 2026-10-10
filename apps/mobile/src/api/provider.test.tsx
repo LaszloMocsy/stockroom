@@ -8,8 +8,8 @@ import {
 } from "@jest/globals";
 import { unwrap } from "@stockroom/api-client";
 import { useQuery } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import { Pressable, Text } from "react-native";
 
 import { MemoryStore } from "@/storage/memory-store";
 import {
@@ -18,7 +18,14 @@ import {
   type AppStorage,
 } from "@/storage/storage";
 
-import { ApiProvider, useApiClient, useSignedIn } from "./provider";
+import {
+  ApiProvider,
+  useApiClient,
+  useChangeServer,
+  useServerUrl,
+  useSignedIn,
+  useSignOut,
+} from "./provider";
 
 const user = {
   id: "6f1c1a52-8a1e-4c63-9a54-1e1f4b8f2d10",
@@ -49,11 +56,15 @@ let storage: AppStorage;
 let validAccessTokens: string[];
 let validRefreshTokens: string[];
 let refreshBodies: unknown[];
+let logoutBodies: unknown[];
+let logoutReachable: boolean;
 
 beforeEach(async () => {
   validAccessTokens = ["access-1"];
   validRefreshTokens = ["refresh-1"];
   refreshBodies = [];
+  logoutBodies = [];
+  logoutReachable = true;
   fetch = jest.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const request = input as Request;
     switch (new URL(request.url).pathname) {
@@ -72,6 +83,12 @@ beforeEach(async () => {
           ? Response.json(refreshedTokens)
           : invalidToken("invalid_refresh_token");
       }
+      case "/api/v1/auth/logout":
+        if (!logoutReachable) {
+          throw new TypeError("Network request failed");
+        }
+        logoutBodies.push(await request.json());
+        return new Response(null, { status: 204 });
       default:
         return new Response(null, { status: 404 });
     }
@@ -85,13 +102,26 @@ afterEach(() => {
   fetch.mockRestore();
 });
 
-/** Shows whether the user is signed in and, when asked, who the server says the user is. */
+/**
+ * Shows the server, whether the user is signed in, and, when asked, who the server says the user is,
+ * with buttons for the provider's actions.
+ */
 function Session({ fetchMe }: { fetchMe: boolean }) {
   const signedIn = useSignedIn();
+  const serverUrl = useServerUrl();
+  const signOut = useSignOut();
+  const changeServer = useChangeServer();
   return (
     <>
       <Text testID="signed-in">{String(signedIn)}</Text>
-      {fetchMe && <Me />}
+      <Text testID="server">{serverUrl ?? "none"}</Text>
+      {fetchMe && serverUrl && <Me />}
+      <Pressable role="button" onPress={() => void signOut()}>
+        <Text>Sign out</Text>
+      </Pressable>
+      <Pressable role="button" onPress={() => void changeServer()}>
+        <Text>Change server</Text>
+      </Pressable>
     </>
   );
 }
@@ -178,5 +208,59 @@ describe("ApiProvider session", () => {
     expect(screen.getByTestId("signed-in")).toHaveTextContent("false");
     expect(await storage.getTokens()).toBeNull();
     expect(await storage.getServerUrl()).toBe("https://stock.example.com");
+  });
+
+  it("signs out: revokes the session and forgets the tokens", async () => {
+    await storage.setTokens(storedTokens);
+    await renderSession({ fetchMe: true });
+    await screen.findByText("Anna Admin");
+
+    await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByText("false")).toBeOnTheScreen();
+    expect(logoutBodies).toEqual([{ refresh_token: "refresh-1" }]);
+    expect(await storage.getTokens()).toBeNull();
+    expect(screen.getByTestId("server")).toHaveTextContent(
+      "https://stock.example.com",
+    );
+    // A new cache: the signed-in user's data is gone.
+    expect(screen.queryByText("Anna Admin")).not.toBeOnTheScreen();
+  });
+
+  it("signs out even when the server cannot be reached", async () => {
+    await storage.setTokens(storedTokens);
+    logoutReachable = false;
+    await renderSession();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByText("false")).toBeOnTheScreen();
+    expect(await storage.getTokens()).toBeNull();
+  });
+
+  it("changes the server: signs out and forgets the server", async () => {
+    await storage.setTokens(storedTokens);
+    await renderSession();
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Change server" }),
+    );
+
+    expect(await screen.findByText("none")).toBeOnTheScreen();
+    expect(screen.getByTestId("signed-in")).toHaveTextContent("false");
+    expect(logoutBodies).toEqual([{ refresh_token: "refresh-1" }]);
+    expect(await storage.getServerUrl()).toBeNull();
+    expect(await storage.getTokens()).toBeNull();
+  });
+
+  it("changes the server without a session to revoke", async () => {
+    await renderSession();
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Change server" }),
+    );
+
+    expect(await screen.findByText("none")).toBeOnTheScreen();
+    expect(logoutBodies).toEqual([]);
   });
 });

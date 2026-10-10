@@ -6,6 +6,9 @@ export const en = {
   app: {
     name: "Stockroom",
   },
+  common: {
+    cancel: "Cancel",
+  },
   connect: {
     title: "Connect to server",
     intro:
@@ -37,6 +40,7 @@ export const en = {
     passwordLabel: "Password",
     submit: "Sign in",
     submitting: "Signing in…",
+    changeServer: "Use a different server",
     errors: {
       required: "This is required.",
       invalidCredentials: "The username or password is wrong.",
@@ -87,8 +91,22 @@ export const en = {
     retry: "Try again",
     checking: "Checking…",
   },
+  settings: {
+    title: "Settings",
+    accountHeading: "Account",
+    signedInAs: "Signed in as {{name}} ({{username}})",
+    signOut: "Sign out",
+    signingOut: "Signing out…",
+    serverHeading: "Server",
+    changeServer: "Change server",
+    changingServer: "Changing server…",
+    changeServerTitle: "Change server?",
+    changeServerMessage:
+      "You will be signed out of {{serverUrl}}, and the app will ask for a server address again.",
+  },
   home: {
     comingSoon: "Mobile app coming soon.",
+    settings: "Settings",
   },
   serverStatus: {
     noServer: "No server is set.",

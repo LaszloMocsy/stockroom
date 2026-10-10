@@ -8,13 +8,20 @@ import {
 } from "@jest/globals";
 import { unwrap } from "@stockroom/api-client";
 import { useQuery } from "@tanstack/react-query";
-import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
-import { Text } from "react-native";
+import { Link } from "expo-router";
+import {
+  act,
+  fireEvent,
+  renderRouter,
+  screen,
+} from "expo-router/testing-library";
+import { Alert, Text } from "react-native";
 
 import { clientVersion } from "@/api/client";
 import { ApiProvider, useApiClient } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
 import LoginScreen from "@/app/login";
+import SettingsScreen from "@/app/settings";
 import SetupScreen from "@/app/setup";
 import UpdateRequiredScreen from "@/app/update-required";
 import { MemoryStore } from "@/storage/memory-store";
@@ -55,7 +62,12 @@ function Home() {
     queryKey: ["me"],
     queryFn: () => unwrap(client.GET("/api/v1/me")),
   });
-  return <Text>Home</Text>;
+  return (
+    <>
+      <Text>Home</Text>
+      <Link href="/settings">Settings</Link>
+    </>
+  );
 }
 
 /**
@@ -74,6 +86,7 @@ async function renderApp(): Promise<() => string> {
     "update-required": UpdateRequiredScreen,
     setup: SetupScreen,
     login: LoginScreen,
+    settings: SettingsScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
@@ -295,5 +308,109 @@ describe("RootStack", () => {
     // Signed in: the requests since carry the new access token.
     const lastRequest = fetch.mock.calls.at(-1)![0] as Request;
     expect(lastRequest.headers.get("Authorization")).toBe("Bearer access-1");
+  });
+
+  describe("from Settings", () => {
+    let logoutBodies: unknown[];
+
+    beforeEach(async () => {
+      logoutBodies = [];
+      await storage.setServerUrl("https://stock.example.com");
+      await storage.setTokens({
+        accessToken: "access-1",
+        refreshToken: "refresh-1",
+      });
+      fetch.mockImplementation(async (input) => {
+        const request = input as Request;
+        switch (new URL(request.url).pathname) {
+          case "/api/v1/auth/logout":
+            logoutBodies.push(await request.json());
+            return new Response(null, { status: 204 });
+          case "/api/v1/me":
+            return Response.json({
+              id: "6f1c1a52-8a1e-4c63-9a54-1e1f4b8f2d10",
+              username: "anna",
+              display_name: "Anna Admin",
+              role: "ADMIN",
+            });
+          default:
+            return Response.json(info);
+        }
+      });
+    });
+
+    async function openSettings() {
+      const pathname = await renderApp();
+      await fireEvent.press(screen.getByText("Settings"));
+      expect(
+        await screen.findByText("Signed in as Anna Admin (anna)"),
+      ).toBeOnTheScreen();
+      expect(pathname()).toBe("/settings");
+      return pathname;
+    }
+
+    it("signs out and returns to the login screen", async () => {
+      const pathname = await openSettings();
+
+      await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+
+      expect(
+        await screen.findByText("Sign in to https://stock.example.com."),
+      ).toBeOnTheScreen();
+      expect(pathname()).toBe("/login");
+      expect(logoutBodies).toEqual([{ refresh_token: "refresh-1" }]);
+      expect(await storage.getTokens()).toBeNull();
+    });
+
+    it("changes the server after confirming, and returns to the Connect screen", async () => {
+      const alert = jest.spyOn(Alert, "alert");
+      const pathname = await openSettings();
+
+      await fireEvent.press(
+        screen.getByRole("button", { name: "Change server" }),
+      );
+      const [title, , buttons] = alert.mock.calls[0]!;
+      expect(title).toBe("Change server?");
+      await act(() =>
+        buttons!.find((button) => button.style === "destructive")!.onPress!(),
+      );
+
+      expect(await screen.findByLabelText("Server address")).toBeOnTheScreen();
+      expect(pathname()).toBe("/connect");
+      expect(logoutBodies).toEqual([{ refresh_token: "refresh-1" }]);
+      expect(await storage.getServerUrl()).toBeNull();
+      expect(await storage.getTokens()).toBeNull();
+      alert.mockRestore();
+    });
+
+    it("keeps the server when changing it is cancelled", async () => {
+      const alert = jest.spyOn(Alert, "alert");
+      const pathname = await openSettings();
+
+      await fireEvent.press(
+        screen.getByRole("button", { name: "Change server" }),
+      );
+      const [, , buttons] = alert.mock.calls[0]!;
+      expect(
+        buttons!.find((button) => button.style === "cancel")?.onPress,
+      ).toBeUndefined();
+
+      expect(pathname()).toBe("/settings");
+      expect(await storage.getServerUrl()).toBe("https://stock.example.com");
+      alert.mockRestore();
+    });
+  });
+
+  it("offers a different server on the login screen", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    const pathname = await renderApp();
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Use a different server" }),
+    );
+
+    expect(await screen.findByLabelText("Server address")).toBeOnTheScreen();
+    expect(pathname()).toBe("/connect");
+    expect(await storage.getServerUrl()).toBeNull();
   });
 });

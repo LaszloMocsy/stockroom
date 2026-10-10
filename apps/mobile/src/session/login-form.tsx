@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, Text, type TextInput } from "react-native";
 
-import { useServerUrl } from "@/api/provider";
+import { useChangeServer, useServerUrl } from "@/api/provider";
 import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
 
@@ -20,6 +20,7 @@ export function LoginForm() {
   const { t } = useTranslation();
   const serverUrl = useServerUrl();
   const logIn = useLogIn();
+  const changeServer = useChangeServer();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -108,6 +109,11 @@ export function LoginForm() {
         busy={login.isPending}
         onPress={submit}
         title={login.isPending ? t("login.submitting") : t("login.submit")}
+      />
+      <Button
+        onPress={() => void changeServer()}
+        title={t("login.changeServer")}
+        variant="secondary"
       />
     </ScrollView>
   );
