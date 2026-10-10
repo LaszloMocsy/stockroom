@@ -26,6 +26,12 @@
         {
           "faceIDPermission": false
         }
+      ],
+      [
+        "expo-localization",
+        {
+          "supportedLocales": ["en"]
+        }
       ]
     ],
     "experiments": {

@@ -1,19 +1,22 @@
 import { unwrap } from "@stockroom/api-client";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, Text } from "react-native";
 
 import { useApiClient, useServerUrl } from "@/api/provider";
 
 /** Whether the app reaches the current server, with the server's and API's versions. */
 export function ServerStatus() {
+  const { t } = useTranslation();
   const serverUrl = useServerUrl();
   if (!serverUrl) {
-    return <Text style={styles.text}>No server is set.</Text>;
+    return <Text style={styles.text}>{t("serverStatus.noServer")}</Text>;
   }
   return <ServerInfo serverUrl={serverUrl} />;
 }
 
 function ServerInfo({ serverUrl }: { serverUrl: string }) {
+  const { t } = useTranslation();
   const client = useApiClient();
   const info = useQuery({
     queryKey: ["info"],
@@ -22,11 +25,18 @@ function ServerInfo({ serverUrl }: { serverUrl: string }) {
 
   let text: string;
   if (info.data) {
-    text = `Connected to ${serverUrl}: server ${info.data.server_version}, API ${info.data.api_version}`;
+    text = t("serverStatus.connected", {
+      serverUrl,
+      serverVersion: info.data.server_version,
+      apiVersion: info.data.api_version,
+    });
   } else if (info.error) {
-    text = `Cannot reach ${serverUrl}: ${info.error.message}`;
+    text = t("serverStatus.unreachable", {
+      serverUrl,
+      message: info.error.message,
+    });
   } else {
-    text = `Connecting to ${serverUrl}…`;
+    text = t("serverStatus.connecting", { serverUrl });
   }
   return <Text style={styles.text}>{text}</Text>;
 }

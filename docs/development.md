@@ -131,6 +131,8 @@ The app imports the API client's built output, not its sources, so `pnpm mobile`
 
 The app talks to the server whose URL it has stored. Until it stores one, it uses `EXPO_PUBLIC_API_URL`, or in development `http://localhost:5278`, which works in the iOS Simulator. Elsewhere, set `EXPO_PUBLIC_API_URL` when starting the dev server, for example `EXPO_PUBLIC_API_URL=http://10.0.2.2:5278 pnpm mobile` for the Android emulator. A phone needs your computer's network address, and the API has to listen on it rather than only on `localhost`. The placeholder screen shows whether it reached the API.
 
+All text the app shows comes from translation keys ([i18next](https://www.i18next.com) with `react-i18next`): use `const { t } = useTranslation()` and `t("home.comingSoon")` rather than writing text in components. English, the source language, is in [`apps/mobile/src/i18n/locales/en.ts`](../apps/mobile/src/i18n/locales/en.ts). Keys and interpolation values are typed from it, so a misspelt key fails the typecheck. The app uses the device's language when it has it, and English otherwise; [`src/i18n/index.ts`](../apps/mobile/src/i18n/index.ts) explains how to add a language.
+
 Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm mobile --clear`, which also clears Metro's cache.
 
 ## Run the tests

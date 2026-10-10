@@ -1,14 +1,17 @@
 import { Stack } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ServerStatus } from "@/components/server-status";
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: "Stockroom" }} />
-      <Text style={styles.title}>Stockroom</Text>
-      <Text style={styles.subtitle}>Mobile app coming soon.</Text>
+      <Stack.Screen options={{ title: t("app.name") }} />
+      <Text style={styles.title}>{t("app.name")}</Text>
+      <Text style={styles.subtitle}>{t("home.comingSoon")}</Text>
       <ServerStatus />
     </View>
   );

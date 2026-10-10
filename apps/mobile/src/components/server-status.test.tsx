@@ -6,9 +6,10 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
 
 import { ApiProvider } from "@/api/provider";
+import i18n from "@/i18n";
 import { MemoryStore } from "@/storage/memory-store";
 import {
   createAppStorage,
@@ -114,5 +115,20 @@ describe("ServerStatus", () => {
       await screen.findByText("Cannot reach http://localhost:5278: Not found."),
     ).toBeOnTheScreen();
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes its text from translation keys", async () => {
+    // In i18next's "cimode", text is shown as its key.
+    await i18n.changeLanguage("cimode");
+    try {
+      await renderStatus(createAppStorage(new MemoryStore()));
+
+      expect(
+        await screen.findByText("serverStatus.connected"),
+      ).toBeOnTheScreen();
+    } finally {
+      // Re-renders the component, so inside act.
+      await act(() => i18n.changeLanguage("en"));
+    }
   });
 });
