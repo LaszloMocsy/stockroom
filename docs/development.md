@@ -1,6 +1,6 @@
 # Development
 
-How to run Stockroom from a clean checkout: the API against a local database, the tests, and the development seed data. For contribution rules, see [CONTRIBUTING.md](../CONTRIBUTING.md); for every setting, see [Configuration](configuration.md).
+How to run Stockroom from a clean checkout: the API against a local database, the mobile app, the tests, and the development seed data. For contribution rules, see [CONTRIBUTING.md](../CONTRIBUTING.md); for every setting, see [Configuration](configuration.md).
 
 ## Contents
 
@@ -9,6 +9,7 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 - [Start the database](#start-the-database)
 - [Run the API](#run-the-api)
 - [Seed development data](#seed-development-data)
+- [Run the mobile app](#run-the-mobile-app)
 - [Run the tests](#run-the-tests)
 - [Change the database schema](#change-the-database-schema)
 - [Change the API](#change-the-api)
@@ -17,12 +18,13 @@ How to run Stockroom from a clean checkout: the API against a local database, th
 
 ## Prerequisites
 
-| Tool                                     | Version                               | Used for                                                                  |
-| ---------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
-| [.NET SDK](https://dotnet.microsoft.com) | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                                    |
-| Docker (Desktop, Engine, or OrbStack)    | Docker Compose v2                     | The development database and the integration tests                        |
-| Node                                     | 24.19.x                               | Repository tooling (formatting), the API client; the apps, once they land |
-| pnpm                                     | 12.9.1, via Corepack                  | The same                                                                  |
+| Tool                                                            | Version                               | Used for                                                            |
+| --------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| [.NET SDK](https://dotnet.microsoft.com)                        | 10.0.401 or a later 10.0 feature band | Building, running, and testing the API                              |
+| Docker (Desktop, Engine, or OrbStack)                           | Docker Compose v2                     | The development database and the integration tests                  |
+| Node                                                            | 24.19.x                               | Repository tooling (formatting), the API client, and the mobile app |
+| pnpm                                                            | 12.9.1, via Corepack                  | The same                                                            |
+| Xcode with an iOS Simulator, or Android Studio with an emulator | Current stable                        | Running the mobile app; optional, a phone with Expo Go also works   |
 
 The exact versions are pinned in the repository; see [Tool versions](../CONTRIBUTING.md#tool-versions). Commands below run from the repository root unless they start with `cd`.
 
@@ -31,7 +33,7 @@ The exact versions are pinned in the repository; see [Tool versions](../CONTRIBU
 ```sh
 nvm use                             # or any version manager that reads .nvmrc
 corepack enable                     # installs the pnpm version from package.json
-pnpm install                        # repository tooling (Prettier) and the API client
+pnpm install                        # repository tooling (Prettier), the API client, and the mobile app
 dotnet --version                    # should print the SDK pinned in global.json
 (cd server && dotnet tool restore)  # dotnet-ef, for migrations
 (cd server && dotnet build)
@@ -113,6 +115,26 @@ It is safe to run again. Users are matched by username and products by SKU, and 
 
 The command only runs in the `Development` environment, because the seed users have well-known passwords. `dotnet run` uses `Development`; anywhere else, it refuses and exits with code 1.
 
+## Run the mobile app
+
+The mobile app lives in [`apps/mobile`](../apps/mobile). It uses [Expo](https://docs.expo.dev) (SDK 57) with [Expo Router](https://docs.expo.dev/router/introduction/): every file under `apps/mobile/src/app` is a screen. It talks to the API through [`packages/api-client`](../packages/api-client), so [start the API](#run-the-api) first.
+
+```sh
+pnpm mobile                     # build the API client, then start the Metro dev server
+```
+
+With the dev server running, press <kbd>i</kbd> to open the app in the iOS Simulator or <kbd>a</kbd> for the Android emulator; the first time, Expo installs [Expo Go](https://expo.dev/go) on it. To use a phone instead, install Expo Go from the App Store or Google Play and scan the QR code that the dev server prints; the phone must be on the same network as your computer. Saving a file reloads the app.
+
+`pnpm mobile --ios` and `pnpm mobile --android` start the dev server and open the simulator or emulator in one step. Other options go to `expo start` the same way.
+
+The app imports the API client's built output, not its sources, so `pnpm mobile` builds the client first. After changing the client or the OpenAPI snapshot, rebuild it with `pnpm --filter api-client build`; the running dev server picks up the change. Expo configures Metro for the pnpm workspace by itself, so the app has no `metro.config.js`.
+
+The app talks to the server whose URL it has stored. Until it stores one, it uses `EXPO_PUBLIC_API_URL`, or in development `http://localhost:5278`, which works in the iOS Simulator. Elsewhere, set `EXPO_PUBLIC_API_URL` when starting the dev server, for example `EXPO_PUBLIC_API_URL=http://10.0.2.2:5278 pnpm mobile` for the Android emulator. A phone needs your computer's network address, and the API has to listen on it rather than only on `localhost`. The placeholder screen shows whether it reached the API.
+
+All text the app shows comes from translation keys ([i18next](https://www.i18next.com) with `react-i18next`): use `const { t } = useTranslation()` and `t("home.comingSoon")` rather than writing text in components. English, the source language, is in [`apps/mobile/src/i18n/locales/en.ts`](../apps/mobile/src/i18n/locales/en.ts). Keys and interpolation values are typed from it, so a misspelt key fails the typecheck. The app uses the device's language when it has it, and English otherwise; [`src/i18n/index.ts`](../apps/mobile/src/i18n/index.ts) explains how to add a language.
+
+Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm mobile --clear`, which also clears Metro's cache.
+
 ## Run the tests
 
 ```sh
@@ -138,6 +160,15 @@ The TypeScript API client has its own unit tests, run with [Vitest](https://vite
 pnpm --filter api-client test
 pnpm --filter api-client typecheck   # also type-checks the tests against the generated types
 ```
+
+The mobile app's unit tests run with [Jest](https://jestjs.io) and the [`jest-expo`](https://docs.expo.dev/develop/unit-testing/) preset, which mocks Expo's native modules as on iOS. They import the built API client, so build it first:
+
+```sh
+pnpm --filter api-client build
+pnpm --filter mobile test
+```
+
+Tests sit next to the code they test, as `*.test.ts` or `*.test.tsx`, and import `describe`, `it`, `expect`, and `jest` from `@jest/globals`. Keep them out of `apps/mobile/src/app`, where Expo Router would treat them as screens. Components are tested with [React Native Testing Library](https://callstack.github.io/react-native-testing-library/), whose `render` is asynchronous: `await render(...)`. To test a component that calls the API, wrap it in `ApiProvider` with a `MemoryStore`-backed storage and stub `globalThis.fetch`, as in `src/components/server-status.test.tsx`.
 
 ## Change the database schema
 
@@ -177,12 +208,19 @@ pnpm format:check              # Prettier, as in CI; `pnpm format` fixes it
 (cd server && dotnet test)
 pnpm --filter api-client typecheck
 pnpm --filter api-client test
+pnpm --filter api-client build  # the app's checks need the built client
+pnpm --filter mobile typecheck  # TypeScript, strict
+pnpm --filter mobile lint       # ESLint with Expo's rules; warnings fail too
+pnpm --filter mobile test
 ```
+
+The app's typecheck uses the typed routes that `expo start` generates in `apps/mobile/.expo/types`, when they exist. Without them, for example on a fresh clone, it still passes, but route paths are not checked.
 
 ## Troubleshooting
 
 - **Port 5432 is already in use:** another PostgreSQL is running locally. Stop it, or change the published port in `docker/compose.dev.yml` (for example `"127.0.0.1:5433:5432"`) and point the API at it, for example `STOCKROOM_DATABASE_URL='Host=localhost;Port=5433;Database=stockroom;Username=stockroom;Password=stockroom'`.
 - **The API exits with `Failed to connect to 127.0.0.1:5432`:** the database is not running. Start it with `docker compose -f docker/compose.dev.yml up -d --wait`.
 - **The API refuses to start because the database is newer:** the database was migrated by a newer version, for example on another branch. Switch back, or reset the database with `down -v`.
+- **The app shows `Unable to resolve module` for a package that is installed:** Metro's cache still points at files from before a `pnpm install`. Start the dev server with `pnpm mobile --clear`.
 - **Integration tests fail with a Docker error:** Docker is not running, or the current user cannot reach it. `docker info` should succeed.
 - **Login answers 429:** either more than 30 auth requests a minute came from your address, or the account is locked after 5 wrong passwords in a row (`account_locked_out`; 1 minute at first, doubling up to 15). Wait and try again. An ADMIN resetting the password clears a lockout; on a seeded database, so does resetting the database.
