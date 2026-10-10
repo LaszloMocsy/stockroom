@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createContext,
   use,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -17,26 +18,21 @@ import { createQueryClient } from "./query-client";
 interface ApiContextValue {
   serverUrl: string | null;
   client: ApiClient | null;
+  saveServerUrl: (url: string) => Promise<void>;
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null);
 
 export interface ApiProviderProps {
   storage: AppStorage;
-  /** The server to use while none is stored. */
-  defaultServerUrl: string | null;
   children: ReactNode;
 }
 
 /**
- * Provides an API client for the stored server, or for the default one while none is stored, and a
- * TanStack Query cache for it. Renders nothing until it has read the stored server URL.
+ * Provides an API client for the stored server and a TanStack Query cache for it. Renders nothing until
+ * it has read the stored server URL.
  */
-export function ApiProvider({
-  storage,
-  defaultServerUrl,
-  children,
-}: ApiProviderProps) {
+export function ApiProvider({ storage, children }: ApiProviderProps) {
   // Undefined while the stored URL is being read.
   const [serverUrl, setServerUrl] = useState<string | null>();
 
@@ -48,13 +44,21 @@ export function ApiProvider({
       .catch(() => null)
       .then((stored) => {
         if (current) {
-          setServerUrl(stored ?? defaultServerUrl);
+          setServerUrl(stored);
         }
       });
     return () => {
       current = false;
     };
-  }, [storage, defaultServerUrl]);
+  }, [storage]);
+
+  const saveServerUrl = useCallback(
+    async (url: string) => {
+      await storage.setServerUrl(url);
+      setServerUrl(url);
+    },
+    [storage],
+  );
 
   // A new cache for each server, so one server's data never shows for another.
   const api = useMemo(
@@ -68,10 +72,11 @@ export function ApiProvider({
                 serverUrl === null
                   ? null
                   : createClient({ baseUrl: serverUrl }),
+              saveServerUrl,
             },
             queryClient: createQueryClient(),
           },
-    [serverUrl],
+    [serverUrl, saveServerUrl],
   );
 
   // Drops a cache as soon as it is replaced or unmounted, rather than leaving its queries to garbage
@@ -119,4 +124,9 @@ export function useApiClient(): ApiClient {
     throw new Error("No server is set, so there is no API client.");
   }
   return client;
+}
+
+/** Stores the URL of the server to talk to from now on, and switches the API client to it. */
+export function useSaveServerUrl(): (url: string) => Promise<void> {
+  return useApiContext().saveServerUrl;
 }

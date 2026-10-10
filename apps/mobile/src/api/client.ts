@@ -7,9 +7,10 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 /**
- * The server to use while none is stored: `EXPO_PUBLIC_API_URL`, or in development builds the local API,
- * which the iOS Simulator reaches as `localhost`. Set the variable to reach the API elsewhere, for
- * example `http://10.0.2.2:5278` from the Android emulator. Null in a release build without it.
+ * The server address the Connect screen suggests: `EXPO_PUBLIC_API_URL`, or in development builds the
+ * local API, which the iOS Simulator reaches as `localhost`. Set the variable to suggest the API
+ * elsewhere, for example `http://10.0.2.2:5278` from the Android emulator. Null in a release build
+ * without it.
  */
 export const defaultServerUrl =
   process.env.EXPO_PUBLIC_API_URL || (__DEV__ ? "http://localhost:5278" : null);
