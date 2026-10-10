@@ -1,5 +1,6 @@
 import { unwrap, type Schema } from "@stockroom/api-client";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,7 +13,9 @@ import {
 } from "react-native";
 
 import { useApiClient } from "@/api/provider";
+import { Button } from "@/components/button";
 import { LoadError } from "@/components/load-error";
+import { ProductRow } from "@/products/product-row";
 
 /** How many low-stock products Home shows; the low-stock list has them all. */
 export const LowStockPreviewSize = 5;
@@ -123,35 +126,30 @@ function Figure({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** Low-stock products, each with how many are on hand and its minimum, in words rather than colour. */
+/** The first few low-stock products, each opening the product, and a way to see them all. */
 function LowStockPreview({
   products,
 }: {
   products: Schema<"ProductResponse">[];
 }) {
   const { t } = useTranslation();
+  const router = useRouter();
   if (products.length === 0) {
     return <Text style={styles.text}>{t("home.noLowStock")}</Text>;
   }
   return (
-    <View style={styles.list}>
-      {products.map((product) => (
-        <View accessible key={product.id} style={styles.product}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productSku}>{product.sku}</Text>
-          <Text style={styles.text}>
-            {t(
-              product.quantity <= 0 ? "home.outOfStock" : "home.quantityOnHand",
-              {
-                quantity: product.quantity,
-                // Never null here: only a product with a minimum can be low on stock.
-                minStock: product.min_stock ?? 0,
-              },
-            )}
-          </Text>
-        </View>
-      ))}
-    </View>
+    <>
+      <View>
+        {products.map((product) => (
+          <ProductRow key={product.id} product={product} />
+        ))}
+      </View>
+      <Button
+        onPress={() => router.push("/low-stock")}
+        title={t("home.seeAllLowStock")}
+        variant="secondary"
+      />
+    </>
   );
 }
 
@@ -186,19 +184,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   figureLabel: {
-    fontSize: 14,
-  },
-  list: {
-    gap: 16,
-  },
-  product: {
-    gap: 2,
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  productSku: {
     fontSize: 14,
   },
   text: {

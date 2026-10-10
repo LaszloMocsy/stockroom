@@ -6,7 +6,13 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react-native";
 
 import { ApiProvider } from "@/api/provider";
 import i18n from "@/i18n";
@@ -107,6 +113,10 @@ const requestsTo = (path: string) =>
 
 describe("Home", () => {
   it("shows the summary figures from /stats/summary", async () => {
+    // No low-stock products, whose badges would say "Out of stock" too.
+    serve({
+      products: () => Response.json({ items: [], next_cursor: null }),
+    });
     await renderHome();
 
     expect(await screen.findByText("42")).toBeOnTheScreen();
@@ -119,11 +129,17 @@ describe("Home", () => {
   it("previews the products low on stock, saying how low in words", async () => {
     await renderHome();
 
-    expect(await screen.findByText("Cable ties")).toBeOnTheScreen();
-    expect(screen.getByText("SKU-0001")).toBeOnTheScreen();
-    expect(screen.getByText("2 on hand, minimum 10")).toBeOnTheScreen();
-    expect(screen.getByText("Duct tape")).toBeOnTheScreen();
-    expect(screen.getByText("Out of stock, minimum 5")).toBeOnTheScreen();
+    const cableTies = await screen.findByRole("link", { name: /Cable ties/ });
+    expect(within(cableTies).getByText("SKU-0001")).toBeOnTheScreen();
+    expect(
+      within(cableTies).getByText("2 on hand · minimum 10"),
+    ).toBeOnTheScreen();
+    expect(within(cableTies).getByText("Low on stock")).toBeOnTheScreen();
+    const ductTape = screen.getByRole("link", { name: /Duct tape/ });
+    expect(
+      within(ductTape).getByText("0 on hand · minimum 5"),
+    ).toBeOnTheScreen();
+    expect(within(ductTape).getByText("Out of stock")).toBeOnTheScreen();
 
     const [url] = requestsTo("/api/v1/products");
     expect(url!.searchParams.get("low_stock")).toBe("true");
@@ -189,8 +205,7 @@ describe("Home", () => {
       await renderHome();
 
       expect(await screen.findByText("home.summaryHeading")).toBeOnTheScreen();
-      expect(await screen.findByText("home.quantityOnHand")).toBeOnTheScreen();
-      expect(screen.getByText("home.outOfStock")).toBeOnTheScreen();
+      expect(await screen.findByText("home.seeAllLowStock")).toBeOnTheScreen();
     } finally {
       // Re-renders the component, so inside act.
       await act(() => i18n.changeLanguage("en"));

@@ -188,7 +188,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I17** — Add the Products list with debounced search and infinite scroll. _Done when:_ typing filters results; scrolling loads more.
 - [x] **I18** — Add the product detail screen (name, SKU, barcodes, quantity, low-stock badge). _Done when:_ opens from the list, and low stock is shown with text or an icon, not by colour alone.
 - [x] **I19** — Add the movement history list on the product detail screen. _Done when:_ shows who (`actor_name`), when, type, delta, reason, and note, with infinite scroll.
-- [ ] **I20** — Add the low-stock list screen. _Done when:_ reachable from Home, lists items at or below `min_stock` (including out of stock), and does not rely on colour alone.
+- [x] **I20** — Add the low-stock list screen. _Done when:_ reachable from Home, lists items at or below `min_stock` (including out of stock), and does not rely on colour alone.
 
 ### I-d. Scan
 

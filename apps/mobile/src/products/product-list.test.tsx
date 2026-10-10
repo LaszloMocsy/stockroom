@@ -110,8 +110,10 @@ describe("ProductList", () => {
 
     expect(await screen.findByText("Ballpoint pens")).toBeOnTheScreen();
     expect(screen.getByText("OFF-PEN")).toBeOnTheScreen();
-    expect(screen.getByText("120 on hand")).toBeOnTheScreen();
-    expect(screen.getByText("2 on hand, low on stock")).toBeOnTheScreen();
+    expect(screen.getByText("120 on hand · minimum 20")).toBeOnTheScreen();
+    expect(screen.getByText("2 on hand · minimum 10")).toBeOnTheScreen();
+    // Low stock in words, not only colour.
+    expect(screen.getByText("Low on stock")).toBeOnTheScreen();
     expect(screen.queryByText("Duct tape")).not.toBeOnTheScreen();
     expect(listRequests()).toEqual([""]);
   });
@@ -125,6 +127,8 @@ describe("ProductList", () => {
     expect(await screen.findByText("Duct tape")).toBeOnTheScreen();
     expect(screen.getByText("Out of stock")).toBeOnTheScreen();
     expect(screen.getByText("Zip bags")).toBeOnTheScreen();
+    // Without a minimum.
+    expect(screen.getByText("40 on hand")).toBeOnTheScreen();
     expect(screen.getByText("Ballpoint pens")).toBeOnTheScreen();
     expect(listRequests()).toEqual(["", "?cursor=2"]);
 
@@ -230,7 +234,9 @@ describe("ProductList", () => {
     try {
       await renderList();
 
-      expect(await screen.findByText("products.quantityLow")).toBeOnTheScreen();
+      expect(
+        await screen.findAllByText("productRow.quantityAndMinimum"),
+      ).toHaveLength(2);
       expect(screen.getByText("products.searchLabel")).toBeOnTheScreen();
     } finally {
       // Re-renders the component, so inside act.

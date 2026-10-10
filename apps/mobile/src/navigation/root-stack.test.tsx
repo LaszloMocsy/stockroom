@@ -19,7 +19,9 @@ import { Alert, Text } from "react-native";
 import { clientVersion } from "@/api/client";
 import { ApiProvider, useApiClient } from "@/api/provider";
 import ConnectScreen from "@/app/connect";
+import HomeScreen from "@/app/(tabs)/index";
 import LoginScreen from "@/app/login";
+import LowStockScreen from "@/app/low-stock";
 import ProductScreen from "@/app/product/[id]";
 import TabsLayout from "@/app/(tabs)/_layout";
 import ProductsScreen from "@/app/(tabs)/products";
@@ -72,10 +74,10 @@ function Home() {
 const tabName = (label: string) => new RegExp(`^${label}, tab,`);
 
 /**
- * Renders the app's routes, with the real root stack and screens and a stand-in home screen, and
- * returns a function for the current path.
+ * Renders the app's routes, with the real root stack and screens and a stand-in home screen (or the
+ * real one, `HomeScreen`), and returns a function for the current path.
  */
-async function renderApp(): Promise<() => string> {
+async function renderApp(home = Home): Promise<() => string> {
   const app = renderRouter({
     _layout: () => (
       <ApiProvider storage={storage}>
@@ -83,7 +85,7 @@ async function renderApp(): Promise<() => string> {
       </ApiProvider>
     ),
     "(tabs)/_layout": TabsLayout,
-    "(tabs)/index": Home,
+    "(tabs)/index": home,
     "(tabs)/products": ProductsScreen,
     "(tabs)/scan": ScanScreen,
     "(tabs)/settings": SettingsScreen,
@@ -92,10 +94,11 @@ async function renderApp(): Promise<() => string> {
     setup: SetupScreen,
     login: LoginScreen,
     "product/[id]": ProductScreen,
+    "low-stock": LowStockScreen,
   });
   await app;
   // The provider renders the routes once it has read the stored server.
-  await screen.findByText(/Home screen|Enter the address|Sign in to/);
+  await screen.findByText(/Home screen|Overview|Enter the address|Sign in to/);
   // Not app itself: returning a promise from an async function unwraps it, which loses the helpers.
   return () => app.getPathname();
 }
@@ -235,6 +238,67 @@ describe("RootStack", () => {
     expect(await screen.findByText("4006381333931")).toBeOnTheScreen();
     expect(screen.getByText("Low on stock")).toBeOnTheScreen();
     expect(pathname()).toBe(`/product/${product.id}`);
+  });
+
+  it("opens the low-stock list from Home", async () => {
+    await storage.setServerUrl("https://stock.example.com");
+    await storage.setTokens({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+    });
+    const product = (name: string, quantity: number) => ({
+      id: crypto.randomUUID(),
+      sku: name.toUpperCase(),
+      name,
+      description: null,
+      barcodes: [],
+      min_stock: 5,
+      quantity,
+      archived_at: null,
+      created_at: "2026-10-01T08:00:00Z",
+      updated_at: "2026-10-01T08:00:00Z",
+    });
+    const lowStock = [
+      product("Cable ties", 2),
+      product("Duct tape", 0),
+      product("Gloves", 3),
+      product("Labels", 1),
+      product("Pens", 4),
+      product("Tape", 5),
+    ];
+    fetch.mockImplementation(async (input) => {
+      const url = new URL((input as Request).url);
+      switch (url.pathname) {
+        case "/api/v1/stats/summary":
+          return Response.json({
+            total_products: 40,
+            total_units: 900,
+            low_stock_count: lowStock.length,
+            out_of_stock_count: 1,
+            recent_movements: [],
+          });
+        case "/api/v1/products": {
+          const limit = Number(url.searchParams.get("limit") ?? 50);
+          return Response.json({
+            items: lowStock.slice(0, limit),
+            next_cursor: null,
+          });
+        }
+        default:
+          return Response.json(info);
+      }
+    });
+    const pathname = await renderApp(HomeScreen);
+    // Home previews five.
+    expect(await screen.findByText("Pens")).toBeOnTheScreen();
+    expect(screen.queryByText("Tape")).toBeNull();
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: "See all products low on stock" }),
+    );
+
+    expect(await screen.findByText("Tape")).toBeOnTheScreen();
+    expect(pathname()).toBe("/low-stock");
   });
 
   it("shows no tabs to signed-out users", async () => {

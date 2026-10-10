@@ -32,6 +32,10 @@ export function RootStack() {
           name="product/[id]"
           options={{ title: t("product.title") }}
         />
+        <Stack.Screen
+          name="low-stock"
+          options={{ title: t("lowStock.title") }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={ready && !signedIn}>
         <Stack.Screen name="login" />

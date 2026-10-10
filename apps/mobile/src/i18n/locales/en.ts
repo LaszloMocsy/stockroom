@@ -121,21 +121,25 @@ export const en = {
     summaryFailed: "The overview could not be loaded.",
     lowStockHeading: "Low on stock",
     noLowStock: "No products are low on stock.",
-    quantityOnHand:
-      "{{quantity, number}} on hand, minimum {{minStock, number}}",
-    outOfStock: "Out of stock, minimum {{minStock, number}}",
+    seeAllLowStock: "See all products low on stock",
     lowStockFailed: "The products low on stock could not be loaded.",
   },
   products: {
     searchLabel: "Search",
     searchPlaceholder: "Name, SKU, or barcode",
-    quantity: "{{quantity, number}} on hand",
-    quantityLow: "{{quantity, number}} on hand, low on stock",
-    outOfStock: "Out of stock",
     none: "There are no products yet.",
     noMatches: "No products match “{{search}}”.",
     loadFailed: "The products could not be loaded.",
     loadMoreFailed: "More products could not be loaded.",
+  },
+  productRow: {
+    quantity: "{{quantity, number}} on hand",
+    quantityAndMinimum:
+      "{{quantity, number}} on hand · minimum {{minStock, number}}",
+  },
+  lowStock: {
+    title: "Low on stock",
+    none: "No products are low on stock.",
   },
   product: {
     title: "Product",

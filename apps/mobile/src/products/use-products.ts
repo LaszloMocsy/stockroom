@@ -7,23 +7,30 @@ import {
 
 import { useApiClient } from "@/api/provider";
 
+export interface ProductFilter {
+  /** Text to find in the name, SKU, or a barcode; blank matches every product. */
+  search?: string;
+  /** Only products at or below their `min_stock`. */
+  lowStock?: boolean;
+}
+
 /**
- * The active products matching `search` (their name, SKU, or a barcode contains it), sorted by name, a
- * page at a time: `fetchNextPage` loads the next one while `hasNextPage`. Blank text matches every
- * product. While the results for new text load, the previous ones stay, so the list does not flash
- * empty between keystrokes.
+ * The active products matching `filter`, sorted by name, a page at a time: `fetchNextPage` loads the
+ * next one while `hasNextPage`. While the results for a new filter load, the previous ones stay, so a
+ * search does not flash empty between keystrokes.
  */
-export function useProducts(search: string) {
+export function useProducts({ search = "", lowStock = false }: ProductFilter) {
   const client = useApiClient();
   const q = search.trim() || undefined;
   return useInfiniteQuery({
-    queryKey: ["products", "list", { q }],
+    queryKey: ["products", "list", { q, lowStock }],
     queryFn: ({ pageParam, signal }) =>
       unwrap(
         client.GET("/api/v1/products", {
           params: {
             query: {
               ...(q !== undefined && { q }),
+              ...(lowStock && { low_stock: true }),
               ...(pageParam !== undefined && { cursor: pageParam }),
             },
           },
