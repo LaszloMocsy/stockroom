@@ -13,7 +13,9 @@ import {
 
 import { Button } from "@/components/button";
 import { LoadError } from "@/components/load-error";
+import { Toast, useToast } from "@/components/toast";
 import { MovementRow } from "@/stock/movement-row";
+import { QuickStockButtons, useQuickStock } from "@/stock/quick-stock";
 import { useProductMovements } from "@/stock/use-movements";
 
 import { StockBadge } from "./stock-badge";
@@ -23,14 +25,17 @@ import { useProduct } from "./use-products";
 /**
  * A product (spec 3.1): its name, SKU, barcodes, units on hand, and minimum, with a badge when it is low
  * on or out of stock, and buttons that add, remove, and count stock, followed by its stock history,
- * newest first (spec 5, flow 6). More history loads as the user scrolls towards the end; pulling down
- * reloads the product and its history.
+ * newest first (spec 5, flow 6). Quick −1 and +1 buttons next to the quantity confirm with a toast
+ * that offers Undo. More history loads as the user scrolls towards the end; pulling down reloads the
+ * product and its history.
  */
 export function ProductDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const product = useProduct(id);
   const movements = useProductMovements(id);
   const [refreshing, setRefreshing] = useState(false);
+  const { toast, show, hide } = useToast();
+  const quick = useQuickStock(id, show);
 
   const items = movements.data?.pages.flatMap((page) => page.items) ?? [];
   // A void comes after the movement it reverses, so it is on the same page or an earlier one.
@@ -58,7 +63,7 @@ export function ProductDetail({ id }: { id: string }) {
   if (product.data) {
     content = (
       <>
-        <Details product={product.data} />
+        <Details product={product.data} quick={quick} />
         <Text role="heading" style={styles.heading}>
           {t("product.historyHeading")}
         </Text>
@@ -103,41 +108,50 @@ export function ProductDetail({ id }: { id: string }) {
   }
 
   return (
-    <FlatList
-      contentContainerStyle={styles.container}
-      contentInsetAdjustmentBehavior="automatic"
-      data={product.data ? items : []}
-      keyExtractor={(movement) => movement.id}
-      ListEmptyComponent={history}
-      ListFooterComponent={
-        movements.isFetchNextPageError ? (
-          <LoadError
-            message={t("product.moreHistoryFailed")}
-            retry={() => void movements.fetchNextPage()}
-            retrying={movements.isFetchingNextPage}
+    <>
+      <FlatList
+        contentContainerStyle={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        data={product.data ? items : []}
+        keyExtractor={(movement) => movement.id}
+        ListEmptyComponent={history}
+        ListFooterComponent={
+          movements.isFetchNextPageError ? (
+            <LoadError
+              message={t("product.moreHistoryFailed")}
+              retry={() => void movements.fetchNextPage()}
+              retrying={movements.isFetchingNextPage}
+            />
+          ) : movements.isFetchingNextPage ? (
+            <ActivityIndicator />
+          ) : null
+        }
+        ListHeaderComponent={<View style={styles.header}>{content}</View>}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            onRefresh={() => void refresh()}
+            refreshing={refreshing}
           />
-        ) : movements.isFetchingNextPage ? (
-          <ActivityIndicator />
-        ) : null
-      }
-      ListHeaderComponent={<View style={styles.header}>{content}</View>}
-      onEndReached={loadMore}
-      onEndReachedThreshold={0.5}
-      refreshControl={
-        <RefreshControl
-          onRefresh={() => void refresh()}
-          refreshing={refreshing}
-        />
-      }
-      renderItem={({ item }) => (
-        <MovementRow movement={item} voided={voided.has(item.id)} />
-      )}
-      testID="product"
-    />
+        }
+        renderItem={({ item }) => (
+          <MovementRow movement={item} voided={voided.has(item.id)} />
+        )}
+        testID="product"
+      />
+      <Toast hide={hide} toast={toast} />
+    </>
   );
 }
 
-function Details({ product }: { product: Schema<"ProductResponse"> }) {
+function Details({
+  product,
+  quick,
+}: {
+  product: Schema<"ProductResponse">;
+  quick: { add: () => void; remove: () => void };
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   return (
@@ -150,13 +164,16 @@ function Details({ product }: { product: Schema<"ProductResponse"> }) {
           <Text style={styles.text}>{t("product.archived")}</Text>
         )}
       </View>
-      {/* One element for screen readers, read as the number, "on hand", and the badge. */}
-      <View accessible style={styles.section}>
-        <Text style={styles.quantity}>
-          {t("product.number", { value: product.quantity })}
-        </Text>
-        <Text style={styles.label}>{t("product.onHand")}</Text>
-        <StockBadge status={stockStatus(product)} />
+      <View style={styles.stock}>
+        {/* One element for screen readers, read as the number, "on hand", and the badge. */}
+        <View accessible style={[styles.section, styles.onHand]}>
+          <Text style={styles.quantity}>
+            {t("product.number", { value: product.quantity })}
+          </Text>
+          <Text style={styles.label}>{t("product.onHand")}</Text>
+          <StockBadge status={stockStatus(product)} />
+        </View>
+        <QuickStockButtons add={quick.add} remove={quick.remove} />
       </View>
       <View style={styles.actions}>
         <View style={styles.action}>
@@ -246,6 +263,14 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 4,
+  },
+  stock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  onHand: {
+    flex: 1,
   },
   actions: {
     flexDirection: "row",

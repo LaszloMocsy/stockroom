@@ -282,6 +282,31 @@ export const en = {
         "Cannot reach the server. Check your network connection and try again.",
     },
   },
+  quickStock: {
+    receive: {
+      label: "Add one",
+      done: "Added 1. {{quantity, number}} on hand.",
+      unreachable: "Could not add 1. Check your network connection.",
+    },
+    issue: {
+      label: "Remove one",
+      done: "Removed 1. {{quantity, number}} on hand.",
+      unreachable: "Could not remove 1. Check your network connection.",
+    },
+    undo: "Undo",
+    undoing: "Undoing…",
+    undone: "Undone. {{quantity, number}} on hand.",
+    errors: {
+      serverError: "The server could not change the stock (HTTP {{status}}).",
+      undoUnreachable: "Could not undo. Check your network connection.",
+      undoWindowExpired:
+        "It is too late to undo this. Ask an administrator to reverse it.",
+      alreadyUndone: "This was already undone.",
+      undoInsufficientStock:
+        "Cannot undo: the unit added is no longer on hand.",
+      undoServerError: "The server could not undo it (HTTP {{status}}).",
+    },
+  },
   stock: {
     lowStock: "Low on stock",
     outOfStock: "Out of stock",
