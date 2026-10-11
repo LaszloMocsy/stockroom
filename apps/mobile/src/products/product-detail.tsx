@@ -22,9 +22,9 @@ import { useProduct } from "./use-products";
 
 /**
  * A product (spec 3.1): its name, SKU, barcodes, units on hand, and minimum, with a badge when it is low
- * on or out of stock, and buttons that add and remove stock, followed by its stock history, newest
- * first (spec 5, flow 6). More history loads as the user scrolls towards the end; pulling down reloads
- * the product and its history.
+ * on or out of stock, and buttons that add, remove, and count stock, followed by its stock history,
+ * newest first (spec 5, flow 6). More history loads as the user scrolls towards the end; pulling down
+ * reloads the product and its history.
  */
 export function ProductDetail({ id }: { id: string }) {
   const { t } = useTranslation();
@@ -182,6 +182,13 @@ function Details({ product }: { product: Schema<"ProductResponse"> }) {
           />
         </View>
       </View>
+      <Button
+        onPress={() =>
+          router.push({ pathname: "/set-count", params: { id: product.id } })
+        }
+        title={t("product.setCount")}
+        variant="secondary"
+      />
       <Field label={t("product.sku")}>
         <Text style={styles.text}>{product.sku}</Text>
       </Field>

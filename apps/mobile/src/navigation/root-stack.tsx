@@ -68,6 +68,15 @@ export function RootStack() {
           }}
         />
         <Stack.Screen
+          name="set-count"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="low-stock"
           options={{ title: t("lowStock.title") }}
         />

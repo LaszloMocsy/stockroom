@@ -161,6 +161,7 @@ export const en = {
     loadFailed: "The product could not be loaded.",
     addStock: "Add stock",
     removeStock: "Remove stock",
+    setCount: "Set count",
   },
   createProduct: {
     title: "New product",
@@ -258,6 +259,18 @@ export const en = {
       quantityLabel: "Units to remove",
       serverError:
         "The server could not remove the stock (HTTP {{status}}). Try again.",
+    },
+    adjust: {
+      title: "Set count",
+      quantityLabel: "Counted quantity",
+      change:
+        "Changes {{previous, number}} on hand to {{count, number}} ({{delta}}).",
+      noChange:
+        "Matches the {{previous, number}} on hand, so nothing will be recorded.",
+      quantityChanged:
+        "The quantity changed from {{expected, number}} to {{current, number}} while you were counting. Check your count, then save again to confirm it.",
+      serverError:
+        "The server could not set the count (HTTP {{status}}). Try again.",
     },
     errors: {
       insufficientStock_zero: "There are none on hand to remove.",

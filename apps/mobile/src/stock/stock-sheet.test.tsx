@@ -8,12 +8,18 @@ import {
 } from "@jest/globals";
 import type { Schema } from "@stockroom/api-client";
 import { Stack } from "expo-router";
-import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
+import {
+  fireEvent,
+  renderRouter,
+  screen,
+  waitFor,
+} from "expo-router/testing-library";
 
 import { ApiProvider } from "@/api/provider";
 import AddStockScreen from "@/app/add-stock";
 import ProductScreen from "@/app/product/[id]";
 import RemoveStockScreen from "@/app/remove-stock";
+import SetCountScreen from "@/app/set-count";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage } from "@/storage/storage";
 
@@ -48,7 +54,26 @@ async function serve(input: RequestInfo | URL): Promise<Response> {
     if (movementResponse) {
       return movementResponse();
     }
-    const delta = body.type === "issue" ? -body.quantity! : body.quantity!;
+    if (body.type === "adjust") {
+      if (
+        body.expected_current !== undefined &&
+        body.expected_current !== product.quantity
+      ) {
+        return errorResponse(409, "quantity_changed", {
+          expected: body.expected_current,
+          current: product.quantity,
+        });
+      }
+      if (body.target_quantity === product.quantity) {
+        return new Response(null, { status: 204 });
+      }
+    }
+    const delta =
+      body.type === "adjust"
+        ? body.target_quantity! - product.quantity
+        : body.type === "issue"
+          ? -body.quantity!
+          : body.quantity!;
     if (product.quantity + delta < 0) {
       return errorResponse(409, "insufficient_stock", {
         requested: body.quantity,
@@ -130,6 +155,7 @@ async function openSheet(button = "Add stock"): Promise<() => string> {
       "product/[id]": ProductScreen,
       "add-stock": AddStockScreen,
       "remove-stock": RemoveStockScreen,
+      "set-count": SetCountScreen,
     },
     { initialUrl: `/product/${productId}` },
   );
@@ -317,5 +343,101 @@ describe("StockSheet removing stock", () => {
     expect(
       await screen.findByText("There are none on hand to remove."),
     ).toBeOnTheScreen();
+  });
+});
+
+describe("StockSheet setting a count", () => {
+  const count = () => quantity("Counted quantity");
+
+  it("shows the quantity it replaces and the difference, then sets it", async () => {
+    const pathname = await openSheet("Set count");
+    expect(count().props.value).toBe("");
+    expect(screen.getByRole("radio", { name: "Count" })).toBeChecked();
+
+    await fireEvent.changeText(count(), "3");
+    expect(screen.getByText("Changes 5 on hand to 3 (−2).")).toBeOnTheScreen();
+    await fireEvent.changeText(count(), "8");
+    expect(screen.getByText("Changes 5 on hand to 8 (+3).")).toBeOnTheScreen();
+    await save();
+
+    expect(await screen.findByText("8")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${productId}`);
+    expect(sent.map(({ body }) => body)).toEqual([
+      {
+        product_id: productId,
+        type: "adjust",
+        target_quantity: 8,
+        expected_current: 5,
+        reason: "count",
+      },
+    ]);
+  });
+
+  it("accepts a count of none", async () => {
+    await openSheet("Set count");
+
+    await fireEvent.changeText(count(), "0");
+    await save();
+
+    expect(await screen.findByText("0")).toBeOnTheScreen();
+  });
+
+  it("asks for a count before saving", async () => {
+    await openSheet("Set count");
+
+    await save();
+
+    expect(screen.getByText("Enter how many.")).toBeOnTheScreen();
+    expect(sent).toEqual([]);
+  });
+
+  it("shows the new quantity when it changed meanwhile, and sets it once confirmed", async () => {
+    const pathname = await openSheet("Set count");
+    // Someone else added some since the sheet opened.
+    product = { ...product, quantity: 7 };
+
+    await fireEvent.changeText(count(), "6");
+    await save();
+
+    expect(
+      await screen.findByText(
+        "The quantity changed from 5 to 7 while you were counting. Check your count, then save again to confirm it.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("WRK-CBT · 7 on hand")).toBeOnTheScreen();
+    expect(screen.getByText("Changes 7 on hand to 6 (−1).")).toBeOnTheScreen();
+    expect(pathname()).toBe("/set-count");
+    expect(product.quantity).toBe(7);
+
+    await save();
+
+    expect(await screen.findByText("6")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${productId}`);
+    expect(sent).toEqual([
+      expect.objectContaining({
+        body: expect.objectContaining({ expected_current: 5 }),
+        key: "key-1",
+      }),
+      // A new request, as the first recorded nothing.
+      expect.objectContaining({
+        body: expect.objectContaining({ expected_current: 7 }),
+        key: "key-2",
+      }),
+    ]);
+  });
+
+  it("closes without an error when the count matches the quantity", async () => {
+    const pathname = await openSheet("Set count");
+
+    await fireEvent.changeText(count(), "5");
+    expect(
+      screen.getByText("Matches the 5 on hand, so nothing will be recorded."),
+    ).toBeOnTheScreen();
+    await save();
+
+    await waitFor(() => expect(pathname()).toBe(`/product/${productId}`));
+    expect(screen.queryByRole("alert")).not.toBeOnTheScreen();
+    expect(screen.getByText("5")).toBeOnTheScreen();
+    expect(sent).toHaveLength(1);
   });
 });

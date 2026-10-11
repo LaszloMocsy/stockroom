@@ -10,6 +10,8 @@ type Product = Schema<"ProductResponse">;
 
 /** The API's error code for removing more than is on hand. */
 const InsufficientStock = "insufficient_stock";
+/** The API's error code for a count whose `expected_current` is no longer the quantity. */
+const QuantityChanged = "quantity_changed";
 
 /**
  * Records a stock movement (spec 4.2) with an `Idempotency-Key`, so sending it again after a failure
@@ -17,7 +19,8 @@ const InsufficientStock = "insufficient_stock";
  * quantity recorded nothing (204).
  *
  * The product shows its new quantity at once; its lists, history, and Home's figures load again. When
- * the server refuses to remove more than is on hand, the product shows what is on hand by then.
+ * the server refuses to remove more than is on hand, or a count because the quantity has changed, the
+ * product shows the quantity the server answered with.
  */
 export function useRecordMovement() {
   const client = useApiClient();
@@ -48,9 +51,10 @@ export function useRecordMovement() {
       ]);
     },
     onError: (error, movement) => {
-      const shortage = insufficientStock(error);
-      if (shortage && movement.product_id) {
-        setQuantity(movement.product_id, shortage.available);
+      const current =
+        insufficientStock(error)?.available ?? quantityChanged(error)?.current;
+      if (current !== undefined && movement.product_id) {
+        setQuantity(movement.product_id, current);
       }
     },
   });
@@ -79,5 +83,28 @@ export function insufficientStock(error: unknown): Shortage | null {
     typeof details.requested === "number" &&
     typeof details.available === "number"
     ? { requested: details.requested, available: details.available }
+    : null;
+}
+
+export interface QuantityChange {
+  /** The quantity the count expected. */
+  expected: number;
+  /** The quantity on hand instead. */
+  current: number;
+}
+
+/** The change from a `quantity_changed` error, or null for any other error. */
+export function quantityChanged(error: unknown): QuantityChange | null {
+  if (!(error instanceof ApiResponseError) || error.code !== QuantityChanged) {
+    return null;
+  }
+  const { details } = error;
+  return typeof details === "object" &&
+    details !== null &&
+    "expected" in details &&
+    "current" in details &&
+    typeof details.expected === "number" &&
+    typeof details.current === "number"
+    ? { expected: details.expected, current: details.current }
     : null;
 }
