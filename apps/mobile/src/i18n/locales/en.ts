@@ -159,6 +159,7 @@ export const en = {
     historyFailed: "The history could not be loaded.",
     moreHistoryFailed: "More history could not be loaded.",
     loadFailed: "The product could not be loaded.",
+    addStock: "Add stock",
   },
   createProduct: {
     title: "New product",
@@ -228,6 +229,32 @@ export const en = {
     reasonAndActor: "{{reason}} · {{actor}}",
     whenAndAfter:
       "{{when, datetime(dateStyle: medium; timeStyle: short)}} · {{quantity, number}} on hand after",
+  },
+  quantity: {
+    decrease: "One fewer",
+    increase: "One more",
+    errors: {
+      required: "Enter how many.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooSmall: "Enter at least {{min, number}}.",
+      tooLarge: "Enter at most {{max, number}}.",
+    },
+  },
+  addStock: {
+    title: "Add stock",
+    onHand: "{{sku}} · {{quantity, number}} on hand",
+    quantityLabel: "Units to add",
+    reasonLabel: "Reason",
+    noteLabel: "Note (optional)",
+    submit: "Save",
+    submitting: "Saving…",
+    errors: {
+      notFound: "This product no longer exists.",
+      serverError:
+        "The server could not add the stock (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
   },
   stock: {
     lowStock: "Low on stock",

@@ -1,4 +1,5 @@
 import { ApiResponseError, type Schema } from "@stockroom/api-client";
+import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { Button } from "@/components/button";
 import { LoadError } from "@/components/load-error";
 import { MovementRow } from "@/stock/movement-row";
 import { useProductMovements } from "@/stock/use-movements";
@@ -20,7 +22,8 @@ import { useProduct } from "./use-products";
 
 /**
  * A product (spec 3.1): its name, SKU, barcodes, units on hand, and minimum, with a badge when it is low
- * on or out of stock, followed by its stock history, newest first (spec 5, flow 6). More history loads
+ * on or out of stock, and a button that adds stock, followed by its stock history, newest first (spec 5,
+ * flow 6). More history loads
  * as the user scrolls towards the end; pulling down reloads the product and its history.
  */
 export function ProductDetail({ id }: { id: string }) {
@@ -136,6 +139,7 @@ export function ProductDetail({ id }: { id: string }) {
 
 function Details({ product }: { product: Schema<"ProductResponse"> }) {
   const { t } = useTranslation();
+  const router = useRouter();
   return (
     <>
       <View style={styles.section}>
@@ -154,6 +158,12 @@ function Details({ product }: { product: Schema<"ProductResponse"> }) {
         <Text style={styles.label}>{t("product.onHand")}</Text>
         <StockBadge status={stockStatus(product)} />
       </View>
+      <Button
+        onPress={() =>
+          router.push({ pathname: "/add-stock", params: { id: product.id } })
+        }
+        title={t("product.addStock")}
+      />
       <Field label={t("product.sku")}>
         <Text style={styles.text}>{product.sku}</Text>
       </Field>
