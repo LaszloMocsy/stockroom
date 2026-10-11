@@ -13,6 +13,7 @@ import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { ApiProvider } from "@/api/provider";
 import AddStockScreen from "@/app/add-stock";
 import ProductScreen from "@/app/product/[id]";
+import RemoveStockScreen from "@/app/remove-stock";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage } from "@/storage/storage";
 
@@ -30,7 +31,7 @@ let movementResponse: (() => Response | Promise<Response>) | null;
 let sent: { body: Schema<"CreateStockMovementRequest">; key: string | null }[];
 let fetch: jest.SpiedFunction<typeof globalThis.fetch>;
 
-/** Answers like the API, from `product`. */
+/** Answers like the API, from `product`, which never has fewer than none on hand. */
 async function serve(input: RequestInfo | URL): Promise<Response> {
   const request = input as Request;
   const route = `${request.method} ${new URL(request.url).pathname}`;
@@ -47,14 +48,24 @@ async function serve(input: RequestInfo | URL): Promise<Response> {
     if (movementResponse) {
       return movementResponse();
     }
-    product = { ...product, quantity: product.quantity + body.quantity! };
-    return Response.json(movement(body, product.quantity), { status: 201 });
+    const delta = body.type === "issue" ? -body.quantity! : body.quantity!;
+    if (product.quantity + delta < 0) {
+      return errorResponse(409, "insufficient_stock", {
+        requested: body.quantity,
+        available: product.quantity,
+      });
+    }
+    product = { ...product, quantity: product.quantity + delta };
+    return Response.json(movement(body, delta, product.quantity), {
+      status: 201,
+    });
   }
   return new Response(null, { status: 404 });
 }
 
 function movement(
   request: Schema<"CreateStockMovementRequest">,
+  delta: number,
   quantityAfter: number,
 ): Schema<"StockMovementResponse"> {
   return {
@@ -62,10 +73,10 @@ function movement(
     product_id: productId,
     product_sku: product.sku,
     product_name: product.name,
-    type: "receive",
-    delta: request.quantity!,
+    type: request.type!,
+    delta,
     quantity_after: quantityAfter,
-    reason: request.reason ?? "purchase",
+    reason: request.reason!,
     note: request.note ?? null,
     reference: null,
     voids_movement_id: null,
@@ -101,8 +112,8 @@ afterEach(() => {
   fetch.mockRestore();
 });
 
-/** Opens the product, then its "Add stock" sheet, and returns a function for the current path. */
-async function openSheet(): Promise<() => string> {
+/** Opens the product, then the sheet that `button` opens, and returns a function for the current path. */
+async function openSheet(button = "Add stock"): Promise<() => string> {
   const storage = createAppStorage(new MemoryStore());
   await storage.setServerUrl("https://stock.example.com");
   await storage.setTokens({
@@ -118,25 +129,24 @@ async function openSheet(): Promise<() => string> {
       ),
       "product/[id]": ProductScreen,
       "add-stock": AddStockScreen,
+      "remove-stock": RemoveStockScreen,
     },
     { initialUrl: `/product/${productId}` },
   );
   await app;
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Add stock" }),
-  );
-  // The sheet shows the product it adds to.
-  await screen.findByText("WRK-CBT · 5 on hand");
+  await fireEvent.press(await screen.findByRole("button", { name: button }));
+  // The sheet shows the product it changes.
+  await screen.findByText(`WRK-CBT · ${product.quantity} on hand`);
   return () => app.getPathname();
 }
 
-const quantity = () => screen.getByLabelText("Units to add");
+const quantity = (label = "Units to add") => screen.getByLabelText(label);
 
 async function save() {
   await fireEvent.press(screen.getByRole("button", { name: "Save" }));
 }
 
-describe("AddStock", () => {
+describe("StockSheet adding stock", () => {
   it("adds the units and shows the product's new quantity", async () => {
     const pathname = await openSheet();
     expect(quantity().props.value).toBe("1");
@@ -247,5 +257,65 @@ describe("AddStock", () => {
     await save();
 
     expect(await screen.findByText("The note is too long.")).toBeOnTheScreen();
+  });
+});
+
+describe("StockSheet removing stock", () => {
+  const removeQuantity = () => quantity("Units to remove");
+
+  it("removes the units and shows the product's new quantity", async () => {
+    const pathname = await openSheet("Remove stock");
+    expect(screen.getByRole("radio", { name: "Sale" })).toBeChecked();
+
+    await fireEvent.changeText(removeQuantity(), "3");
+    await fireEvent.press(screen.getByRole("radio", { name: "Damaged" }));
+    await save();
+
+    expect(await screen.findByText("2")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${productId}`);
+    expect(sent.map(({ body }) => body)).toEqual([
+      {
+        product_id: productId,
+        type: "issue",
+        quantity: 3,
+        reason: "damaged",
+      },
+    ]);
+  });
+
+  it("says how many are on hand when removing more, and changes nothing", async () => {
+    const pathname = await openSheet("Remove stock");
+    // Someone else removed some since the sheet opened.
+    product = { ...product, quantity: 2 };
+
+    await fireEvent.changeText(removeQuantity(), "4");
+    await save();
+
+    expect(
+      await screen.findByText("Only 2 are on hand. Remove at most 2."),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("WRK-CBT · 2 on hand")).toBeOnTheScreen();
+    expect(pathname()).toBe("/remove-stock");
+    expect(product.quantity).toBe(2);
+
+    await fireEvent.changeText(removeQuantity(), "2");
+    expect(
+      screen.queryByText("Only 2 are on hand. Remove at most 2."),
+    ).not.toBeOnTheScreen();
+    await save();
+
+    expect(await screen.findByText("0")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${productId}`);
+  });
+
+  it("says when there are none on hand", async () => {
+    product = { ...product, quantity: 0 };
+    await openSheet("Remove stock");
+
+    await save();
+
+    expect(
+      await screen.findByText("There are none on hand to remove."),
+    ).toBeOnTheScreen();
   });
 });

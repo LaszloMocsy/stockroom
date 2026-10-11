@@ -21,18 +21,17 @@ import { useProduct } from "@/products/use-products";
 
 import { quantityError } from "./quantity";
 import { QuantityStepper } from "./quantity-stepper";
-import { ReasonPicker } from "./reason-picker";
-import { useRecordMovement } from "./use-record-movement";
+import { ReasonPicker, type Reason } from "./reason-picker";
+import { insufficientStock, useRecordMovement } from "./use-record-movement";
 
-/** Why stock is added; the server's default, `purchase`, comes first. */
-const ReceiveReasons = [
-  "purchase",
-  "return",
-  "found",
-  "correction",
-  "other",
-] as const;
-type ReceiveReason = (typeof ReceiveReasons)[number];
+/** A movement that adds stock (`receive`) or removes it (`issue`). */
+export type StockSheetType = "receive" | "issue";
+
+/** Why stock moves each way; the server's default comes first. */
+const Reasons: Record<StockSheetType, readonly Reason[]> = {
+  receive: ["purchase", "return", "found", "correction", "other"],
+  issue: ["sale", "damaged", "lost", "return", "correction", "other"],
+};
 
 /** The server's longest note. */
 const MaxNoteLength = 2000;
@@ -40,33 +39,52 @@ const MaxNoteLength = 2000;
 type Field = "quantity" | "note";
 
 /**
- * The sheet that adds stock to the product `productId` (spec 4.2, and spec 5, flow 2): how many, one
- * by default, why, and an optional note. Saving records a `receive` movement and closes the sheet; the
- * product then shows its new quantity. Saving again after a failure retries with the same idempotency
- * key, so a request that did reach the server is not recorded twice.
+ * The sheet that adds stock to the product `productId` or removes it (spec 4.2, and spec 5, flows 2
+ * and 3): how many, one by default, why, and an optional note. Saving records a `receive` or an
+ * `issue` movement and closes the sheet; the product then shows its new quantity. Saving again after a
+ * failure retries with the same idempotency key, so a request that did reach the server is not
+ * recorded twice.
+ *
+ * Removing more than is on hand is refused by the server, unless it allows negative stock, so the
+ * sheet does not check it: it shows the server's answer next to the quantity, and stays open.
  */
-export function AddStock({ productId }: { productId: string }) {
+export function StockSheet({
+  productId,
+  type,
+}: {
+  productId: string;
+  type: StockSheetType;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const product = useProduct(productId);
   const record = useRecordMovement();
 
   const [quantity, setQuantity] = useState("1");
-  const [reason, setReason] = useState<ReceiveReason>("purchase");
+  const reasons = Reasons[type];
+  const [reason, setReason] = useState<Reason>(reasons[0]!);
   const [note, setNote] = useState("");
   // The quantity's error shows from the first attempt to save, not while the user is still typing.
   const [submitted, setSubmitted] = useState(false);
   const noteInput = useRef<TextInput>(null);
 
   const clientError = quantityError(quantity, 1);
-  const serverErrors = serverFieldErrors(record.error, ServerFieldNames);
+  const shortage = insufficientStock(record.error);
+  const serverErrors: Partial<Record<Field, string>> = {
+    ...serverFieldErrors(record.error, ServerFieldNames),
+    ...(shortage && {
+      quantity: t("stockSheet.errors.insufficientStock", {
+        count: shortage.available,
+      }),
+    }),
+  };
   const quantityText =
     submitted && clientError
       ? t(`quantity.errors.${clientError}`, { min: 1, max: MaxQuantity })
       : serverErrors.quantity;
   const formError =
     record.error && Object.keys(serverErrors).length === 0
-      ? errorText(record.error, t)
+      ? errorText(record.error, type, t)
       : null;
 
   // Stays busy after success too, until the sheet has closed.
@@ -91,7 +109,7 @@ export function AddStock({ productId }: { productId: string }) {
     record.mutate(
       {
         product_id: productId,
-        type: "receive",
+        type,
         quantity: Number(quantity.trim()),
         reason,
         ...(trimmedNote && { note: trimmedNote }),
@@ -138,13 +156,13 @@ export function AddStock({ productId }: { productId: string }) {
       keyboardShouldPersistTaps="handled"
     >
       <Text role="heading" style={styles.title}>
-        {t("addStock.title")}
+        {t(`stockSheet.${type}.title`)}
       </Text>
       {summary}
       <QuantityStepper
         editable={!busy}
         error={quantityText}
-        label={t("addStock.quantityLabel")}
+        label={t(`stockSheet.${type}.quantityLabel`)}
         min={1}
         onChangeText={change(setQuantity)}
         onSubmitEditing={() => noteInput.current?.focus()}
@@ -154,16 +172,16 @@ export function AddStock({ productId }: { productId: string }) {
       />
       <ReasonPicker
         disabled={busy}
-        label={t("addStock.reasonLabel")}
+        label={t("stockSheet.reasonLabel")}
         onChange={change(setReason)}
-        reasons={ReceiveReasons}
+        reasons={reasons}
         value={reason}
       />
       <TextField
         ref={noteInput}
         editable={!busy}
         error={serverErrors.note}
-        label={t("addStock.noteLabel")}
+        label={t("stockSheet.noteLabel")}
         maxLength={MaxNoteLength}
         multiline
         onChangeText={change(setNote)}
@@ -177,7 +195,7 @@ export function AddStock({ productId }: { productId: string }) {
       <Button
         busy={busy}
         onPress={save}
-        title={busy ? t("addStock.submitting") : t("addStock.submit")}
+        title={busy ? t("stockSheet.submitting") : t("stockSheet.submit")}
       />
       <Button
         onPress={() => router.back()}
@@ -195,7 +213,10 @@ function ProductSummary({ product }: { product: Schema<"ProductResponse"> }) {
     <View accessible style={styles.summary}>
       <Text style={styles.name}>{product.name}</Text>
       <Text style={styles.text}>
-        {t("addStock.onHand", { sku: product.sku, quantity: product.quantity })}
+        {t("stockSheet.onHand", {
+          sku: product.sku,
+          quantity: product.quantity,
+        })}
       </Text>
     </View>
   );
@@ -208,14 +229,14 @@ const ServerFieldNames: Record<string, Field> = {
 };
 
 /** The error to show for the whole form, when no field shows it. */
-function errorText(error: Error, t: TFunction): string {
+function errorText(error: Error, type: StockSheetType, t: TFunction): string {
   if (!(error instanceof ApiResponseError)) {
-    return t("addStock.errors.unreachable");
+    return t("stockSheet.errors.unreachable");
   }
   if (error.status === 404) {
-    return t("addStock.errors.notFound");
+    return t("stockSheet.errors.notFound");
   }
-  return t("addStock.errors.serverError", { status: String(error.status) });
+  return t(`stockSheet.${type}.serverError`, { status: String(error.status) });
 }
 
 const styles = StyleSheet.create({

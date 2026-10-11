@@ -59,6 +59,15 @@ export function RootStack() {
           }}
         />
         <Stack.Screen
+          name="remove-stock"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="low-stock"
           options={{ title: t("lowStock.title") }}
         />

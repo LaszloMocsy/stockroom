@@ -160,6 +160,7 @@ export const en = {
     moreHistoryFailed: "More history could not be loaded.",
     loadFailed: "The product could not be loaded.",
     addStock: "Add stock",
+    removeStock: "Remove stock",
   },
   createProduct: {
     title: "New product",
@@ -240,18 +241,30 @@ export const en = {
       tooLarge: "Enter at most {{max, number}}.",
     },
   },
-  addStock: {
-    title: "Add stock",
+  stockSheet: {
     onHand: "{{sku}} · {{quantity, number}} on hand",
-    quantityLabel: "Units to add",
     reasonLabel: "Reason",
     noteLabel: "Note (optional)",
     submit: "Save",
     submitting: "Saving…",
-    errors: {
-      notFound: "This product no longer exists.",
+    receive: {
+      title: "Add stock",
+      quantityLabel: "Units to add",
       serverError:
         "The server could not add the stock (HTTP {{status}}). Try again.",
+    },
+    issue: {
+      title: "Remove stock",
+      quantityLabel: "Units to remove",
+      serverError:
+        "The server could not remove the stock (HTTP {{status}}). Try again.",
+    },
+    errors: {
+      insufficientStock_zero: "There are none on hand to remove.",
+      insufficientStock_one: "Only 1 is on hand. Remove at most 1.",
+      insufficientStock_other:
+        "Only {{count, number}} are on hand. Remove at most {{count, number}}.",
+      notFound: "This product no longer exists.",
       unreachable:
         "Cannot reach the server. Check your network connection and try again.",
     },
