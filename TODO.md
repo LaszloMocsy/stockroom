@@ -200,7 +200,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 
 ### I-e. Stock actions
 
-- [ ] **I26** — Add a mutation helper that generates an idempotency key per user action and reuses it on retry. _Done when:_ unit tested.
+- [x] **I26** — Add a mutation helper that generates an idempotency key per user action and reuses it on retry. _Done when:_ unit tested.
 - [ ] **I27** — Add the "Add stock" sheet (quantity stepper, optional reason and note). _Done when:_ saving updates the product quantity.
 - [ ] **I28** — Add the "Remove stock" sheet with a clear insufficient-stock error. _Done when:_ removing more than available shows the message and changes nothing.
 - [ ] **I29** — Add the "Set count" flow showing previous value and delta. _Done when:_ a 409 (`details.expected` / `details.current`) shows the new value for confirmation, and a count equal to the current quantity (204, nothing recorded) is handled without an error.
