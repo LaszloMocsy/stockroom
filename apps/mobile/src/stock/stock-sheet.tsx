@@ -1,7 +1,7 @@
 import { ApiResponseError, type Schema } from "@stockroom/api-client";
 import type { TFunction } from "i18next";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Text,
   View,
-  type TextInput,
 } from "react-native";
 
 import { serverFieldErrors } from "@/api/field-errors";
@@ -83,7 +82,6 @@ export function StockSheet({
   const [note, setNote] = useState("");
   // The quantity's error shows from the first attempt to save, not while the user is still typing.
   const [submitted, setSubmitted] = useState(false);
-  const noteInput = useRef<TextInput>(null);
   // The quantity a count replaces: what the user saw when the product loaded, or the newer quantity
   // the server answered with. Kept apart from the product, which may load again meanwhile.
   const [counted, setCounted] = useState<number | null>(null);
@@ -211,9 +209,9 @@ export function StockSheet({
         label={t(`stockSheet.${type}.quantityLabel`)}
         min={min}
         onChangeText={change(setQuantity)}
-        onSubmitEditing={() => noteInput.current?.focus()}
-        returnKeyType="next"
-        submitBehavior="submit"
+        // Closes the keyboard, which would otherwise cover Save; the reason and note are optional.
+        returnKeyType="done"
+        submitBehavior="blurAndSubmit"
         value={quantity}
       />
       {counting && counted !== null && !clientError && (
@@ -227,7 +225,6 @@ export function StockSheet({
         value={reason}
       />
       <TextField
-        ref={noteInput}
         editable={!busy}
         error={serverErrors.note}
         label={t("stockSheet.noteLabel")}

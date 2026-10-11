@@ -236,6 +236,17 @@ describe("StockSheet adding stock", () => {
     expect(sent).toEqual([]);
   });
 
+  it("closes the keyboard from the quantity's Done key, without saving", async () => {
+    const pathname = await openSheet();
+
+    expect(quantity().props.returnKeyType).toBe("done");
+    expect(quantity().props.submitBehavior).toBe("blurAndSubmit");
+    await fireEvent(quantity(), "submitEditing");
+
+    expect(pathname()).toBe("/add-stock");
+    expect(sent).toEqual([]);
+  });
+
   it("does not step below one", async () => {
     await openSheet();
 
