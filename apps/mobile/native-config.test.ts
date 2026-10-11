@@ -45,6 +45,19 @@ describe("native configuration", () => {
     expect(application?.$["android:usesCleartextTraffic"]).toBe("false");
   }, 30_000);
 
+  // Apps built with the iOS 27 SDK stop at launch unless they adopt the UIKit scene lifecycle.
+  it("adopts the iOS scene lifecycle", () => {
+    const { infoPlist } = introspectConfig()._internal.modResults.ios;
+
+    expect(infoPlist.UIApplicationSceneManifest).toMatchObject({
+      UISceneConfigurations: {
+        UIWindowSceneSessionRoleApplication: [
+          { UISceneDelegateClassName: "EXExpoAppSceneDelegate" },
+        ],
+      },
+    });
+  }, 30_000);
+
   // The scanner uses the camera, but nothing records sound.
   it("asks for the camera and not the microphone", () => {
     const { android, ios } = introspectConfig()._internal.modResults;

@@ -48,6 +48,9 @@
         {
           "android": {
             "usesCleartextTraffic": false
+          },
+          "ios": {
+            "enableSceneSupport": true
           }
         }
       ]
