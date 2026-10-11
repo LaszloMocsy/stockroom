@@ -10,7 +10,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useEffect } from "react";
 import { AccessibilityInfo } from "react-native";
 
-import { Toast, useToast, type ToastOptions } from "./toast";
+import { ToastProvider, useToast, type ToastOptions } from "./toast";
 
 let announce: jest.SpiedFunction<
   typeof AccessibilityInfo.announceForAccessibility
@@ -29,11 +29,17 @@ afterEach(() => {
 });
 
 /** Shows `options` once, as a screen would after an action. */
-function Screen({ options }: { options: ToastOptions }) {
-  const { toast, show, hide } = useToast();
+function ShowOnce({ options }: { options: ToastOptions }) {
+  const { show } = useToast();
   useEffect(() => show(options), [show, options]);
-  return <Toast hide={hide} toast={toast} />;
+  return null;
 }
+
+const Screen = ({ options }: { options: ToastOptions }) => (
+  <ToastProvider>
+    <ShowOnce options={options} />
+  </ToastProvider>
+);
 
 describe("Toast", () => {
   it("shows a message, announces it, and hides it after four seconds", async () => {

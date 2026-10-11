@@ -19,6 +19,7 @@ import { MaxQuantity } from "@/products/validate-product";
 import { useProduct } from "@/products/use-products";
 
 import { quantityError } from "./quantity";
+import { useConfirmMovement } from "./movement-toast";
 import { QuantityStepper } from "./quantity-stepper";
 import { ReasonPicker, type Reason } from "./reason-picker";
 import {
@@ -49,9 +50,9 @@ type Field = "quantity" | "note";
 /**
  * The sheet that adds stock to the product `productId`, removes it, or sets it to a count (spec 4.2,
  * and spec 5, flows 2, 3, and 5): how many, why, and an optional note. Saving records a `receive`, an
- * `issue`, or an `adjust` movement and closes the sheet; the product then shows its new quantity.
- * Saving again after a failure retries with the same idempotency key, so a request that did reach the
- * server is not recorded twice.
+ * `issue`, or an `adjust` movement and closes the sheet; the product then shows its new quantity, and
+ * a toast confirms the change with Undo. Saving again after a failure retries with the same idempotency
+ * key, so a request that did reach the server is not recorded twice.
  *
  * Removing more than is on hand is refused by the server, unless it allows negative stock, so the
  * sheet does not check it: it shows the server's answer next to the quantity, and stays open.
@@ -72,6 +73,7 @@ export function StockSheet({
   const router = useRouter();
   const product = useProduct(productId);
   const record = useRecordMovement();
+  const confirm = useConfirmMovement();
 
   const counting = type === "adjust";
   const min = counting ? 0 : 1;
@@ -145,7 +147,12 @@ export function StockSheet({
     };
     record.mutate(movement, {
       // Also when a count recorded nothing, because it matched the quantity.
-      onSuccess: () => router.back(),
+      onSuccess: (recorded) => {
+        if (recorded) {
+          confirm(recorded);
+        }
+        router.back();
+      },
       onError: (error) => {
         const changed = quantityChanged(error);
         if (changed) {

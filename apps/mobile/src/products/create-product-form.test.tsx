@@ -10,7 +10,7 @@ import type { Schema } from "@stockroom/api-client";
 import { router, Stack } from "expo-router";
 import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import NewProductScreen from "@/app/product/new";
 import ProductScreen from "@/app/product/[id]";
 import { MemoryStore } from "@/storage/memory-store";
@@ -83,9 +83,9 @@ async function renderForm(url = "/product/new"): Promise<() => string> {
   const app = renderRouter(
     {
       _layout: () => (
-        <ApiProvider storage={storage}>
+        <AppProviders storage={storage}>
           <Stack />
-        </ApiProvider>
+        </AppProviders>
       ),
       "product/new": NewProductScreen,
       "product/[id]": ProductScreen,

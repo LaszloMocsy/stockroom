@@ -1,4 +1,12 @@
-import { use, useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   AccessibilityInfo,
   Pressable,
@@ -21,15 +29,24 @@ interface ShownToast extends ToastOptions {
   id: number;
 }
 
+export interface ToastControls {
+  /** Shows a toast in place of the current one; screen readers announce its message. */
+  show: (options: ToastOptions) => void;
+  hide: () => void;
+}
+
 /** How long a toast shows: longer with an action, so there is time to reach it. */
 const DurationMs = 4000;
 const DurationWithActionMs = 8000;
 
+const ToastContext = createContext<ToastControls | null>(null);
+
 /**
- * A short message at the bottom of the screen, which hides itself after a few seconds (see `Toast`).
- * `show` replaces the current toast, and screen readers announce the message.
+ * Shows short messages at the bottom of the screen, above whichever screen is in front, which hide
+ * themselves after a few seconds. As the toast belongs to the app rather than a screen, a screen can
+ * show one as it closes, for example a sheet confirming what it saved.
  */
-export function useToast() {
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ShownToast | null>(null);
 
   useEffect(() => {
@@ -48,28 +65,28 @@ export function useToast() {
     AccessibilityInfo.announceForAccessibility(options.message);
   }, []);
   const hide = useCallback(() => setToast(null), []);
+  const controls = useMemo(() => ({ show, hide }), [show, hide]);
 
-  return { toast, show, hide };
+  return (
+    <ToastContext value={controls}>
+      {children}
+      {toast && <Toast hide={hide} toast={toast} />}
+    </ToastContext>
+  );
 }
 
-export type ShowToast = (options: ToastOptions) => void;
+/** Shows and hides the app's toast. Use it inside a `ToastProvider`. */
+export function useToast(): ToastControls {
+  const controls = use(ToastContext);
+  if (!controls) {
+    throw new Error("Use useToast inside a ToastProvider.");
+  }
+  return controls;
+}
 
-/**
- * Shows the toast from `useToast`, if any, above the bottom of the screen. Render it after the
- * screen's content, so that it is drawn on top.
- */
-export function Toast({
-  toast,
-  hide,
-}: {
-  toast: ToastOptions | null;
-  hide: () => void;
-}) {
+function Toast({ toast, hide }: { toast: ToastOptions; hide: () => void }) {
   // Expo Router provides the insets; without them, as in some tests, the toast sits above the edge.
   const bottomInset = use(SafeAreaInsetsContext)?.bottom ?? 0;
-  if (!toast) {
-    return null;
-  }
   const { action } = toast;
   return (
     <View

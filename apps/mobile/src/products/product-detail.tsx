@@ -13,7 +13,6 @@ import {
 
 import { Button } from "@/components/button";
 import { LoadError } from "@/components/load-error";
-import { Toast, useToast } from "@/components/toast";
 import { MovementRow } from "@/stock/movement-row";
 import { QuickStockButtons, useQuickStock } from "@/stock/quick-stock";
 import { useProductMovements } from "@/stock/use-movements";
@@ -34,8 +33,7 @@ export function ProductDetail({ id }: { id: string }) {
   const product = useProduct(id);
   const movements = useProductMovements(id);
   const [refreshing, setRefreshing] = useState(false);
-  const { toast, show, hide } = useToast();
-  const quick = useQuickStock(id, show);
+  const quick = useQuickStock(id);
 
   const items = movements.data?.pages.flatMap((page) => page.items) ?? [];
   // A void comes after the movement it reverses, so it is on the same page or an earlier one.
@@ -108,40 +106,37 @@ export function ProductDetail({ id }: { id: string }) {
   }
 
   return (
-    <>
-      <FlatList
-        contentContainerStyle={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        data={product.data ? items : []}
-        keyExtractor={(movement) => movement.id}
-        ListEmptyComponent={history}
-        ListFooterComponent={
-          movements.isFetchNextPageError ? (
-            <LoadError
-              message={t("product.moreHistoryFailed")}
-              retry={() => void movements.fetchNextPage()}
-              retrying={movements.isFetchingNextPage}
-            />
-          ) : movements.isFetchingNextPage ? (
-            <ActivityIndicator />
-          ) : null
-        }
-        ListHeaderComponent={<View style={styles.header}>{content}</View>}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        refreshControl={
-          <RefreshControl
-            onRefresh={() => void refresh()}
-            refreshing={refreshing}
+    <FlatList
+      contentContainerStyle={styles.container}
+      contentInsetAdjustmentBehavior="automatic"
+      data={product.data ? items : []}
+      keyExtractor={(movement) => movement.id}
+      ListEmptyComponent={history}
+      ListFooterComponent={
+        movements.isFetchNextPageError ? (
+          <LoadError
+            message={t("product.moreHistoryFailed")}
+            retry={() => void movements.fetchNextPage()}
+            retrying={movements.isFetchingNextPage}
           />
-        }
-        renderItem={({ item }) => (
-          <MovementRow movement={item} voided={voided.has(item.id)} />
-        )}
-        testID="product"
-      />
-      <Toast hide={hide} toast={toast} />
-    </>
+        ) : movements.isFetchingNextPage ? (
+          <ActivityIndicator />
+        ) : null
+      }
+      ListHeaderComponent={<View style={styles.header}>{content}</View>}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      refreshControl={
+        <RefreshControl
+          onRefresh={() => void refresh()}
+          refreshing={refreshing}
+        />
+      }
+      renderItem={({ item }) => (
+        <MovementRow movement={item} voided={voided.has(item.id)} />
+      )}
+      testID="product"
+    />
   );
 }
 

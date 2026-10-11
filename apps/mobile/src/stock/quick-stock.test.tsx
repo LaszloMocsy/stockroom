@@ -9,7 +9,7 @@ import {
 import type { Schema } from "@stockroom/api-client";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import { ProductDetail } from "@/products/product-detail";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage } from "@/storage/storage";
@@ -141,9 +141,9 @@ async function renderProduct() {
     refreshToken: "refresh-1",
   });
   await render(
-    <ApiProvider storage={storage}>
+    <AppProviders storage={storage}>
       <ProductDetail id={productId} />
-    </ApiProvider>,
+    </AppProviders>,
   );
   await screen.findByText(String(product.quantity));
 }
@@ -157,13 +157,17 @@ describe("quick stock buttons", () => {
 
     await press("Add one");
 
-    expect(await screen.findByText("Added 1. 6 on hand.")).toBeOnTheScreen();
-    expect(screen.getByText("6")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Added 1 to Cable ties. 6 on hand."),
+    ).toBeOnTheScreen();
+    expect(await screen.findByText("6")).toBeOnTheScreen();
 
     await press("Undo");
 
-    expect(await screen.findByText("Undone. 5 on hand.")).toBeOnTheScreen();
-    expect(screen.getByText("5")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Undone. Cable ties has 5 on hand."),
+    ).toBeOnTheScreen();
+    expect(await screen.findByText("5")).toBeOnTheScreen();
     expect(product.quantity).toBe(5);
     expect(sent).toEqual([
       { route: "POST /api/v1/stock/movements", key: "key-1" },
@@ -175,23 +179,29 @@ describe("quick stock buttons", () => {
     await renderProduct();
 
     await press("Remove one");
-    expect(await screen.findByText("Removed 1. 4 on hand.")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Removed 1 from Cable ties. 4 on hand."),
+    ).toBeOnTheScreen();
     await press("Undo");
 
-    expect(await screen.findByText("Undone. 5 on hand.")).toBeOnTheScreen();
-    expect(screen.getByText("5")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Undone. Cable ties has 5 on hand."),
+    ).toBeOnTheScreen();
+    expect(await screen.findByText("5")).toBeOnTheScreen();
   });
 
   it("adds one for each tap, and undoes the last", async () => {
     await renderProduct();
 
     await press("Add one");
-    await screen.findByText("Added 1. 6 on hand.");
+    await screen.findByText("Added 1 to Cable ties. 6 on hand.");
     await press("Add one");
-    await screen.findByText("Added 1. 7 on hand.");
+    await screen.findByText("Added 1 to Cable ties. 7 on hand.");
     await press("Undo");
 
-    expect(await screen.findByText("Undone. 6 on hand.")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Undone. Cable ties has 6 on hand."),
+    ).toBeOnTheScreen();
     expect(sent.map(({ route }) => route)).toEqual([
       "POST /api/v1/stock/movements",
       "POST /api/v1/stock/movements",
@@ -205,7 +215,7 @@ describe("quick stock buttons", () => {
     await renderProduct();
 
     await press("Add one");
-    await screen.findByText("Added 1. 6 on hand.");
+    await screen.findByText("Added 1 to Cable ties. 6 on hand.");
     await press("Undo");
 
     expect(
@@ -216,18 +226,18 @@ describe("quick stock buttons", () => {
     expect(product.quantity).toBe(6);
   });
 
-  it("says when the unit added is no longer on hand to undo", async () => {
+  it("says when the units added are no longer on hand to undo", async () => {
     await renderProduct();
 
     await press("Add one");
-    await screen.findByText("Added 1. 6 on hand.");
+    await screen.findByText("Added 1 to Cable ties. 6 on hand.");
     // Someone else removed them all meanwhile.
     product = { ...product, quantity: 0 };
     await press("Undo");
 
     expect(
       await screen.findByText(
-        "Cannot undo: the unit added is no longer on hand.",
+        "Cannot undo: the units added are no longer on hand.",
       ),
     ).toBeOnTheScreen();
   });
@@ -258,7 +268,9 @@ describe("quick stock buttons", () => {
     delete overrides["POST /api/v1/stock/movements"];
     await press("Try again");
 
-    expect(await screen.findByText("Added 1. 6 on hand.")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Added 1 to Cable ties. 6 on hand."),
+    ).toBeOnTheScreen();
     expect(sent.map(({ key }) => key)).toEqual(["key-1", "key-1"]);
   });
 });

@@ -285,25 +285,32 @@ export const en = {
   quickStock: {
     receive: {
       label: "Add one",
-      done: "Added 1. {{quantity, number}} on hand.",
       unreachable: "Could not add 1. Check your network connection.",
     },
     issue: {
       label: "Remove one",
-      done: "Removed 1. {{quantity, number}} on hand.",
       unreachable: "Could not remove 1. Check your network connection.",
     },
-    undo: "Undo",
-    undoing: "Undoing…",
-    undone: "Undone. {{quantity, number}} on hand.",
     errors: {
       serverError: "The server could not change the stock (HTTP {{status}}).",
+    },
+  },
+  movementToast: {
+    received:
+      "Added {{units, number}} to {{name}}. {{quantity, number}} on hand.",
+    issued:
+      "Removed {{units, number}} from {{name}}. {{quantity, number}} on hand.",
+    counted: "Set {{name}} to {{quantity, number}} on hand.",
+    undo: "Undo",
+    undoing: "Undoing…",
+    undone: "Undone. {{name}} has {{quantity, number}} on hand.",
+    errors: {
       undoUnreachable: "Could not undo. Check your network connection.",
       undoWindowExpired:
         "It is too late to undo this. Ask an administrator to reverse it.",
       alreadyUndone: "This was already undone.",
       undoInsufficientStock:
-        "Cannot undo: the unit added is no longer on hand.",
+        "Cannot undo: the units added are no longer on hand.",
       undoServerError: "The server could not undo it (HTTP {{status}}).",
     },
   },

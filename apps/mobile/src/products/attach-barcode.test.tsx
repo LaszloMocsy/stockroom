@@ -18,7 +18,7 @@ import {
 } from "expo-router/testing-library";
 import { Alert } from "react-native";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import AttachBarcodeScreen from "@/app/attach-barcode";
 import ProductScreen from "@/app/product/[id]";
 import { Scan } from "@/scan/scan";
@@ -152,9 +152,9 @@ async function renderAttach(
   const app = renderRouter(
     {
       _layout: () => (
-        <ApiProvider storage={storage}>
+        <AppProviders storage={storage}>
           <Stack />
-        </ApiProvider>
+        </AppProviders>
       ),
       index: Scan,
       "attach-barcode": AttachBarcodeScreen,

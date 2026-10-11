@@ -17,7 +17,8 @@ import {
 import { Alert, Text } from "react-native";
 
 import { clientVersion } from "@/api/client";
-import { ApiProvider, useApiClient } from "@/api/provider";
+import { useApiClient } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import ConnectScreen from "@/app/connect";
 import HomeScreen from "@/app/(tabs)/index";
 import LoginScreen from "@/app/login";
@@ -96,9 +97,9 @@ const tabName = (label: string) => new RegExp(`^${label}, tab,`);
 async function renderApp(home = Home): Promise<() => string> {
   const app = renderRouter({
     _layout: () => (
-      <ApiProvider storage={storage}>
+      <AppProviders storage={storage}>
         <RootStack />
-      </ApiProvider>
+      </AppProviders>
     ),
     "(tabs)/_layout": TabsLayout,
     "(tabs)/index": home,

@@ -9,7 +9,7 @@ import {
 import type { Schema } from "@stockroom/api-client";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import i18n from "@/i18n";
 import { MemoryStore } from "@/storage/memory-store";
 import { createAppStorage } from "@/storage/storage";
@@ -112,9 +112,9 @@ async function renderDetail() {
     refreshToken: "refresh-1",
   });
   await render(
-    <ApiProvider storage={storage}>
+    <AppProviders storage={storage}>
       <ProductDetail id={id} />
-    </ApiProvider>,
+    </AppProviders>,
   );
 }
 

@@ -2,7 +2,7 @@ import { ApiResponseError, unwrap, type Schema } from "@stockroom/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useIdempotentMutation } from "@/api/idempotent-mutation";
-import { useApiClient } from "@/api/provider";
+import { useApiClient, useOptionalApiClient } from "@/api/provider";
 import { productKey } from "@/products/use-products";
 
 export type NewMovement = Schema<"CreateStockMovementRequest">;
@@ -57,20 +57,27 @@ export function useRecordMovement() {
  * The product shows its quantity after the void at once. Whether the void succeeds or fails, the
  * product, its lists and history, and Home's figures load again: a refused void may mean that someone
  * else changed or voided the movement meanwhile.
+ *
+ * Unlike recording, it can be used where no server is set yet, such as in a provider for the whole
+ * app; voiding then fails.
  */
 export function useVoidMovement() {
-  const client = useApiClient();
+  const client = useOptionalApiClient();
   const { setQuantity, refresh } = useStockCache();
   return useIdempotentMutation({
-    mutationFn: (movementId: string, idempotencyKey: string) =>
-      unwrap(
+    mutationFn: (movementId: string, idempotencyKey: string) => {
+      if (!client) {
+        return Promise.reject(new Error("No server is set."));
+      }
+      return unwrap(
         client.POST("/api/v1/stock/movements/{id}/void", {
           params: {
             path: { id: movementId },
             header: { "Idempotency-Key": idempotencyKey },
           },
         }),
-      ),
+      );
+    },
     onSuccess: (movement) =>
       setQuantity(movement.product_id, movement.quantity_after),
     onSettled: refresh,
@@ -82,11 +89,14 @@ function useStockCache() {
   const queryClient = useQueryClient();
   return {
     /** Shows `quantity` as the product's units on hand, until it loads again. */
-    setQuantity: (productId: string, quantity: number) =>
+    setQuantity: (productId: string, quantity: number) => {
+      // A load that started before the change would answer with the quantity from before it.
+      void queryClient.cancelQueries({ queryKey: productKey(productId) });
       queryClient.setQueryData<Product>(
         productKey(productId),
         (product) => product && { ...product, quantity },
-      ),
+      );
+    },
     /**
      * Loads products, movements, and Home's figures again. Not awaited: the user need not wait for
      * them, as the product already shows its quantity.

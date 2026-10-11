@@ -16,7 +16,7 @@ import {
   screen,
 } from "expo-router/testing-library";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import AttachBarcodeScreen from "@/app/attach-barcode";
 import NewProductScreen from "@/app/product/new";
 import ProductScreen from "@/app/product/[id]";
@@ -102,9 +102,9 @@ async function renderScan(): Promise<() => string> {
   });
   const app = renderRouter({
     _layout: () => (
-      <ApiProvider storage={storage}>
+      <AppProviders storage={storage}>
         <Stack />
-      </ApiProvider>
+      </AppProviders>
     ),
     index: Scan,
     "product/[id]": ProductScreen,

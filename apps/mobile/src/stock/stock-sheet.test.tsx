@@ -15,7 +15,7 @@ import {
   waitFor,
 } from "expo-router/testing-library";
 
-import { ApiProvider } from "@/api/provider";
+import { AppProviders } from "@/navigation/app-providers";
 import AddStockScreen from "@/app/add-stock";
 import ProductScreen from "@/app/product/[id]";
 import RemoveStockScreen from "@/app/remove-stock";
@@ -148,9 +148,9 @@ async function openSheet(button = "Add stock"): Promise<() => string> {
   const app = renderRouter(
     {
       _layout: () => (
-        <ApiProvider storage={storage}>
+        <AppProviders storage={storage}>
           <Stack />
-        </ApiProvider>
+        </AppProviders>
       ),
       "product/[id]": ProductScreen,
       "add-stock": AddStockScreen,
@@ -189,6 +189,11 @@ describe("StockSheet adding stock", () => {
 
     expect(await screen.findByText("7")).toBeOnTheScreen();
     expect(pathname()).toBe(`/product/${productId}`);
+    // The toast confirms it, and offers to undo it.
+    expect(
+      screen.getByText("Added 2 to Cable ties. 7 on hand."),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeOnTheScreen();
     expect(sent).toEqual([
       {
         body: {
@@ -310,6 +315,9 @@ describe("StockSheet removing stock", () => {
 
     expect(await screen.findByText("2")).toBeOnTheScreen();
     expect(pathname()).toBe(`/product/${productId}`);
+    expect(
+      screen.getByText("Removed 3 from Cable ties. 2 on hand."),
+    ).toBeOnTheScreen();
     expect(sent.map(({ body }) => body)).toEqual([
       {
         product_id: productId,
@@ -372,6 +380,7 @@ describe("StockSheet setting a count", () => {
     await save();
 
     expect(await screen.findByText("8")).toBeOnTheScreen();
+    expect(screen.getByText("Set Cable ties to 8 on hand.")).toBeOnTheScreen();
     expect(pathname()).toBe(`/product/${productId}`);
     expect(sent.map(({ body }) => body)).toEqual([
       {
@@ -448,6 +457,8 @@ describe("StockSheet setting a count", () => {
 
     await waitFor(() => expect(pathname()).toBe(`/product/${productId}`));
     expect(screen.queryByRole("alert")).not.toBeOnTheScreen();
+    // Nothing was recorded, so there is nothing to confirm or undo.
+    expect(screen.queryByTestId("toast")).toBeNull();
     expect(screen.getByText("5")).toBeOnTheScreen();
     expect(sent).toHaveLength(1);
   });
