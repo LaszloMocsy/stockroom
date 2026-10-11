@@ -211,7 +211,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 
 ### I-f. Quality and delivery
 
-- [ ] **I34** — Add connectivity detection with a visible offline banner. _Done when:_ the banner appears and clears as the network drops and returns.
+- [x] **I34** — Add connectivity detection with a visible offline banner. _Done when:_ the banner appears and clears as the network drops and returns.
 - [ ] **I35** — Add safe retry for failed stock mutations. _Done when:_ a dropped request can be retried with the same idempotency key without double-counting.
 - [ ] **I36** — Add `eas.json` with a development and an internal-distribution profile and document the steps in `docs/mobile.md`. _Done when:_ an internal build can be produced following the doc.
 - [ ] **I37** — Add app icons and splash screen, and set the app name and bundle identifiers. _Needs:_ the name and identifiers confirmed first (spec open question 1); ask the user. _Done when:_ assets appear in a build.

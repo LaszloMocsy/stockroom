@@ -413,6 +413,10 @@ export const en = {
       "Connected to {{serverUrl}}: server {{serverVersion}}, API {{apiVersion}}",
     unreachable: "Cannot reach {{serverUrl}}: {{message}}",
   },
+  offline: {
+    message: "You're offline. Changes can't be saved until you're back online.",
+    backOnline: "You're back online.",
+  },
 } as const;
 
 type Strings<T> = {
