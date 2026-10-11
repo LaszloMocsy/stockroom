@@ -92,6 +92,24 @@ npx eas-cli@latest build --profile internal --platform android --local
 
 The APK is written to the current directory.
 
+To see a release build in the iOS Simulator without EAS or an Expo login, build it with Xcode and [CocoaPods](https://cocoapods.org) (`brew install cocoapods`):
+
+```sh
+npx expo run:ios --configuration Release --no-bundler   # add --device "<simulator name>" to pick one
+```
+
+It generates the native project in `apps/mobile/ios` (git-ignored, recreated from `app.json` by `npx expo prebuild --clean`), builds it, and installs the app with its JavaScript bundled in, so it needs no dev server. The first build takes a while; later ones are quicker.
+
+## App icon and splash screen
+
+The icon and splash images in `apps/mobile/assets` are rendered from the SVG files in [`apps/mobile/assets/source`](../apps/mobile/assets/source): `icon.svg` for iOS (opaque; the system rounds the corners), `android-icon-foreground.svg` and `android-icon-monochrome.svg` for Android's adaptive and themed icons (drawn on the `adaptiveIcon.backgroundColor` in `app.json`, inside the central safe zone that every mask shape keeps), and `splash-icon.svg`, shown on the splash screen's background colour. After editing one, render the PNGs with [ImageMagick](https://imagemagick.org) 7 and commit both:
+
+```sh
+apps/mobile/assets/source/render.sh
+```
+
+`app.json` sets the splash screen (the `expo-splash-screen` plugin) and the colours. Icons and the splash screen are native, so they change only in a new build, not in Expo Go or on reload.
+
 ## Troubleshooting
 
 - **The build cannot resolve `@stockroom/api-client`:** the API client was not built. Check that the build log ran `eas-build-post-install`, and that `server/openapi/openapi.v1.json` is committed: EAS uploads only files that git tracks.
