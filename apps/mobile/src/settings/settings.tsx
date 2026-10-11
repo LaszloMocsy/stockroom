@@ -1,17 +1,11 @@
-import { unwrap } from "@stockroom/api-client";
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import {
-  useApiClient,
-  useChangeServer,
-  useServerUrl,
-  useSignOut,
-} from "@/api/provider";
+import { useChangeServer, useServerUrl, useSignOut } from "@/api/provider";
 import { Button } from "@/components/button";
 import { ServerStatus } from "@/components/server-status";
+import { useMe } from "@/session/use-me";
 
 type Action = "signOut" | "changeServer";
 
@@ -22,13 +16,9 @@ type Action = "signOut" | "changeServer";
 export function Settings() {
   const { t } = useTranslation();
   const serverUrl = useServerUrl() ?? "";
-  const client = useApiClient();
   const signOut = useSignOut();
   const changeServer = useChangeServer();
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => unwrap(client.GET("/api/v1/me")),
-  });
+  const me = useMe();
   const [pending, setPending] = useState<Action | null>(null);
 
   // Neither action rejects: both sign out even when the server cannot be reached.

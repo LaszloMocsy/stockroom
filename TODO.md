@@ -207,7 +207,7 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 - [x] **I30** — Add +1 / −1 quick buttons with a toast and an undo action that voids the movement. _Done when:_ undo restores the quantity within the undo window.
 - [x] **I31** — Add "Add stock" and "Remove stock" shortcuts on Home that open the scanner in that mode, then the matching sheet for the scanned product. _Done when:_ receiving a delivery takes two taps from Home plus entering the quantity (spec 1.1, flows 2 and 3).
 - [x] **I32** — Add a product edit form (name, description, `min_stock`) with removal of a barcode. _Done when:_ changes persist and show on the detail screen.
-- [ ] **I33** — Add ADMIN-only archive / restore actions on the product detail. _Done when:_ hidden for STAFF; works for ADMIN.
+- [x] **I33** — Add ADMIN-only archive / restore actions on the product detail. _Done when:_ hidden for STAFF; works for ADMIN.
 
 ### I-f. Quality and delivery
 

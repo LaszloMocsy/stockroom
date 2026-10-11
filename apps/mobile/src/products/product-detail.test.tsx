@@ -92,6 +92,13 @@ beforeEach(() => {
         return productResponse();
       case "/api/v1/stock/movements":
         return movementsResponse(url);
+      case "/api/v1/me":
+        return Response.json({
+          id: "6f1c1a52-8a1e-4c63-9a54-1e1f4b8f2d10",
+          username: "sam",
+          display_name: "Sam Staff",
+          role: "STAFF",
+        });
       default:
         return Response.json({}, { status: 500 });
     }

@@ -17,6 +17,7 @@ import { MovementRow } from "@/stock/movement-row";
 import { QuickStockButtons, useQuickStock } from "@/stock/quick-stock";
 import { useProductMovements } from "@/stock/use-movements";
 
+import { ArchiveActions } from "./archive-actions";
 import { StockBadge } from "./stock-badge";
 import { stockStatus } from "./stock-status";
 import { useProduct } from "./use-products";
@@ -25,8 +26,8 @@ import { useProduct } from "./use-products";
  * A product (spec 3.1): its name, SKU, barcodes, units on hand, and minimum, with a badge when it is low
  * on or out of stock, and buttons that add, remove, and count stock, followed by its stock history,
  * newest first (spec 5, flow 6). Quick −1 and +1 buttons next to the quantity confirm with a toast
- * that offers Undo. More history loads as the user scrolls towards the end; pulling down reloads the
- * product and its history.
+ * that offers Undo, and ADMIN users can archive or restore the product. More history loads as the
+ * user scrolls towards the end; pulling down reloads the product and its history.
  */
 export function ProductDetail({ id }: { id: string }) {
   const { t } = useTranslation();
@@ -227,6 +228,7 @@ function Details({
           <Text style={styles.text}>{product.description}</Text>
         </Field>
       )}
+      <ArchiveActions product={product} />
     </>
   );
 }

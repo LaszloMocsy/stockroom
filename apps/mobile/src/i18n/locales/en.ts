@@ -167,6 +167,33 @@ export const en = {
     edit: "Edit",
     editLabel: "Edit product",
   },
+  archive: {
+    archive: {
+      button: "Archive product",
+      pending: "Archiving…",
+      hint: "Archiving hides the product from the lists and search. Its stock and history stay.",
+      done: "Archived {{name}}.",
+      failed:
+        "The server could not archive the product (HTTP {{status}}). Try again.",
+    },
+    restore: {
+      button: "Restore product",
+      pending: "Restoring…",
+      hint: "Restoring shows the product in the lists and search again.",
+      done: "Restored {{name}}.",
+      failed:
+        "The server could not restore the product (HTTP {{status}}). Try again.",
+    },
+    confirmTitle: "Archive product?",
+    confirmMessage:
+      "Archive {{name}}? It will no longer show in the lists and search. Its stock and history stay, and an administrator can restore it.",
+    errors: {
+      forbidden: "Only administrators can archive and restore products.",
+      notFound: "This product no longer exists.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
   editProduct: {
     title: "Edit product",
     nameLabel: "Name",
