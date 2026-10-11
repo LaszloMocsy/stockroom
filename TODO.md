@@ -163,58 +163,58 @@ The app's imports of `@stockroom/api-client` resolve to its built `dist/`, and t
 
 ### I-a. Foundation
 
-- [ ] **I1** — Scaffold `apps/mobile` with Expo, TypeScript, and Expo Router inside the workspace. _Done when:_ the app starts in the simulator and shows a placeholder screen, `pnpm format:check` still passes (generated and build folders such as `.expo/` are in `.prettierignore`), and `docs/development.md` explains how to run the app.
-- [ ] **I2** — Configure Metro for the pnpm monorepo and consume `packages/api-client`, with a root script that builds the client before the app. _Done when:_ on a simulator or device the app calls a client function against a running dev API, including a request that gets a 401 and is refreshed and retried (the client's refresh relies on `Request.clone()` and `fetch(Request)`, which are only unit tested against a Node mock).
-- [ ] **I3** — Add ESLint, TypeScript strict mode, and `typecheck` / `lint` scripts for the app. _Done when:_ both scripts pass.
-- [ ] **I4** — Add a unit test runner for the app (for example `jest-expo`), a `test` script, and a CI job that builds `api-client` and then runs the app's `typecheck`, `lint`, and `test`. _Done when:_ a sample test passes, and the CI job is green on a clean tree.
-- [ ] **I5** — Add persistent storage behind a small interface: tokens in `expo-secure-store` and the server URL. _Done when:_ unit tested with a fake store.
-- [ ] **I6** — Add an app-wide data layer (TanStack Query) and an API client provider that reads the stored server URL (a development default from an Expo public env variable until I8 stores one). _Done when:_ a screen fetches `/info` through it.
-- [ ] **I7** — Add an i18n scaffold with English strings. _Done when:_ visible text on existing screens comes from translation keys.
+- [x] **I1** — Scaffold `apps/mobile` with Expo, TypeScript, and Expo Router inside the workspace. _Done when:_ the app starts in the simulator and shows a placeholder screen, `pnpm format:check` still passes (generated and build folders such as `.expo/` are in `.prettierignore`), and `docs/development.md` explains how to run the app.
+- [x] **I2** — Configure Metro for the pnpm monorepo and consume `packages/api-client`, with a root script that builds the client before the app. _Done when:_ on a simulator or device the app calls a client function against a running dev API, including a request that gets a 401 and is refreshed and retried (the client's refresh relies on `Request.clone()` and `fetch(Request)`, which are only unit tested against a Node mock).
+- [x] **I3** — Add ESLint, TypeScript strict mode, and `typecheck` / `lint` scripts for the app. _Done when:_ both scripts pass.
+- [x] **I4** — Add a unit test runner for the app (for example `jest-expo`), a `test` script, and a CI job that builds `api-client` and then runs the app's `typecheck`, `lint`, and `test`. _Done when:_ a sample test passes, and the CI job is green on a clean tree.
+- [x] **I5** — Add persistent storage behind a small interface: tokens in `expo-secure-store` and the server URL. _Done when:_ unit tested with a fake store.
+- [x] **I6** — Add an app-wide data layer (TanStack Query) and an API client provider that reads the stored server URL (a development default from an Expo public env variable until I8 stores one). _Done when:_ a screen fetches `/info` through it.
+- [x] **I7** — Add an i18n scaffold with English strings. _Done when:_ visible text on existing screens comes from translation keys.
 
 ### I-b. Connect and sign in
 
-- [ ] **I8** — Add the "Connect to server" screen: URL input, normalisation, and `/info` validation, saving the URL on success. _Done when:_ malformed URLs, unreachable servers, and servers that are not Stockroom (a bad `/info` response) show clear errors.
-- [ ] **I9** — Refuse `http://` servers except `localhost` and development builds, and allow cleartext traffic on Android only in the development profile. _Done when:_ the rule is unit tested, and a release build's configuration does not allow cleartext.
-- [ ] **I10** — Add the compatibility gate showing "update the app" or "server is outdated" using `checkCompatibility`. _Done when:_ both states are demonstrated with a mocked `/info`.
-- [ ] **I11** — Add the first-run setup screen shown when `setup_required` is true (create the initial ADMIN). _Done when:_ completing it creates the ADMIN and then signs in with the same credentials (`/setup` returns the user, not tokens).
-- [ ] **I12** — Add the login screen. _Done when:_ successful login stores tokens; failure shows an error.
-- [ ] **I13** — Add session restore and silent refresh: the client's token refresh is wired to the stored tokens, and an expired session returns the user to login. _Done when:_ an app restart keeps the user signed in, and an expired access token is refreshed without a prompt.
-- [ ] **I14** — Add logout and "Change server" (in Settings). _Done when:_ logout revokes the session on the server and clears the tokens; changing the server clears the URL and tokens and returns to the Connect screen.
-- [ ] **I15** — Add the app shell with tab navigation (Home, Products, Scan, Settings). _Done when:_ tabs render for signed-in users only.
+- [x] **I8** — Add the "Connect to server" screen: URL input, normalisation, and `/info` validation, saving the URL on success. _Done when:_ malformed URLs, unreachable servers, and servers that are not Stockroom (a bad `/info` response) show clear errors.
+- [x] **I9** — Refuse `http://` servers except `localhost` and development builds, and allow cleartext traffic on Android only in the development profile. _Done when:_ the rule is unit tested, and a release build's configuration does not allow cleartext.
+- [x] **I10** — Add the compatibility gate showing "update the app" or "server is outdated" using `checkCompatibility`. _Done when:_ both states are demonstrated with a mocked `/info`.
+- [x] **I11** — Add the first-run setup screen shown when `setup_required` is true (create the initial ADMIN). _Done when:_ completing it creates the ADMIN and then signs in with the same credentials (`/setup` returns the user, not tokens).
+- [x] **I12** — Add the login screen. _Done when:_ successful login stores tokens; failure shows an error.
+- [x] **I13** — Add session restore and silent refresh: the client's token refresh is wired to the stored tokens, and an expired session returns the user to login. _Done when:_ an app restart keeps the user signed in, and an expired access token is refreshed without a prompt.
+- [x] **I14** — Add logout and "Change server" (in Settings). _Done when:_ logout revokes the session on the server and clears the tokens; changing the server clears the URL and tokens and returns to the Connect screen.
+- [x] **I15** — Add the app shell with tab navigation (Home, Products, Scan, Settings). _Done when:_ tabs render for signed-in users only.
 
 ### I-c. Browse
 
-- [ ] **I16** — Add the Home screen with summary figures and a low-stock preview. _Done when:_ shows live data from `/stats/summary` and `products?low_stock=true`.
-- [ ] **I17** — Add the Products list with debounced search and infinite scroll. _Done when:_ typing filters results; scrolling loads more.
-- [ ] **I18** — Add the product detail screen (name, SKU, barcodes, quantity, low-stock badge). _Done when:_ opens from the list, and low stock is shown with text or an icon, not by colour alone.
-- [ ] **I19** — Add the movement history list on the product detail screen. _Done when:_ shows who (`actor_name`), when, type, delta, reason, and note, with infinite scroll.
-- [ ] **I20** — Add the low-stock list screen. _Done when:_ reachable from Home, lists items at or below `min_stock` (including out of stock), and does not rely on colour alone.
+- [x] **I16** — Add the Home screen with summary figures and a low-stock preview. _Done when:_ shows live data from `/stats/summary` and `products?low_stock=true`.
+- [x] **I17** — Add the Products list with debounced search and infinite scroll. _Done when:_ typing filters results; scrolling loads more.
+- [x] **I18** — Add the product detail screen (name, SKU, barcodes, quantity, low-stock badge). _Done when:_ opens from the list, and low stock is shown with text or an icon, not by colour alone.
+- [x] **I19** — Add the movement history list on the product detail screen. _Done when:_ shows who (`actor_name`), when, type, delta, reason, and note, with infinite scroll.
+- [x] **I20** — Add the low-stock list screen. _Done when:_ reachable from Home, lists items at or below `min_stock` (including out of stock), and does not rely on colour alone.
 
 ### I-d. Scan
 
-- [ ] **I21** — Add a reusable barcode scanner component using `expo-camera` with a permission flow. _Done when:_ denied and granted states are handled; scans emit a barcode string once per detection.
-- [ ] **I22** — Wire Scan → product lookup → open the product detail. _Done when:_ scanning a known barcode opens the product.
-- [ ] **I23** — Add the "Create product" form (name, optional SKU, `min_stock`, barcode, initial quantity), taking an optional barcode as a route parameter. _Done when:_ creating a product lands on its detail screen, with the barcode attached when one was passed.
-- [ ] **I24** — Add "Attach barcode to existing product" (search, pick, confirm), taking the barcode as a route parameter. _Done when:_ the barcode resolves to that product on the next scan.
-- [ ] **I25** — Handle unknown barcodes with a sheet offering "Create product" or "Attach to existing". _Done when:_ scanning an unknown barcode shows the sheet, and both options open the I23 and I24 screens with the barcode carried along.
+- [x] **I21** — Add a reusable barcode scanner component using `expo-camera` with a permission flow. _Done when:_ denied and granted states are handled; scans emit a barcode string once per detection.
+- [x] **I22** — Wire Scan → product lookup → open the product detail. _Done when:_ scanning a known barcode opens the product.
+- [x] **I23** — Add the "Create product" form (name, optional SKU, `min_stock`, barcode, initial quantity), taking an optional barcode as a route parameter. _Done when:_ creating a product lands on its detail screen, with the barcode attached when one was passed.
+- [x] **I24** — Add "Attach barcode to existing product" (search, pick, confirm), taking the barcode as a route parameter. _Done when:_ the barcode resolves to that product on the next scan.
+- [x] **I25** — Handle unknown barcodes with a sheet offering "Create product" or "Attach to existing". _Done when:_ scanning an unknown barcode shows the sheet, and both options open the I23 and I24 screens with the barcode carried along.
 
 ### I-e. Stock actions
 
-- [ ] **I26** — Add a mutation helper that generates an idempotency key per user action and reuses it on retry. _Done when:_ unit tested.
-- [ ] **I27** — Add the "Add stock" sheet (quantity stepper, optional reason and note). _Done when:_ saving updates the product quantity.
-- [ ] **I28** — Add the "Remove stock" sheet with a clear insufficient-stock error. _Done when:_ removing more than available shows the message and changes nothing.
-- [ ] **I29** — Add the "Set count" flow showing previous value and delta. _Done when:_ a 409 (`details.expected` / `details.current`) shows the new value for confirmation, and a count equal to the current quantity (204, nothing recorded) is handled without an error.
-- [ ] **I30** — Add +1 / −1 quick buttons with a toast and an undo action that voids the movement. _Done when:_ undo restores the quantity within the undo window.
-- [ ] **I31** — Add "Add stock" and "Remove stock" shortcuts on Home that open the scanner in that mode, then the matching sheet for the scanned product. _Done when:_ receiving a delivery takes two taps from Home plus entering the quantity (spec 1.1, flows 2 and 3).
-- [ ] **I32** — Add a product edit form (name, description, `min_stock`) with removal of a barcode. _Done when:_ changes persist and show on the detail screen.
-- [ ] **I33** — Add ADMIN-only archive / restore actions on the product detail. _Done when:_ hidden for STAFF; works for ADMIN.
+- [x] **I26** — Add a mutation helper that generates an idempotency key per user action and reuses it on retry. _Done when:_ unit tested.
+- [x] **I27** — Add the "Add stock" sheet (quantity stepper, optional reason and note). _Done when:_ saving updates the product quantity.
+- [x] **I28** — Add the "Remove stock" sheet with a clear insufficient-stock error. _Done when:_ removing more than available shows the message and changes nothing.
+- [x] **I29** — Add the "Set count" flow showing previous value and delta. _Done when:_ a 409 (`details.expected` / `details.current`) shows the new value for confirmation, and a count equal to the current quantity (204, nothing recorded) is handled without an error.
+- [x] **I30** — Add +1 / −1 quick buttons with a toast and an undo action that voids the movement. _Done when:_ undo restores the quantity within the undo window.
+- [x] **I31** — Add "Add stock" and "Remove stock" shortcuts on Home that open the scanner in that mode, then the matching sheet for the scanned product. _Done when:_ receiving a delivery takes two taps from Home plus entering the quantity (spec 1.1, flows 2 and 3).
+- [x] **I32** — Add a product edit form (name, description, `min_stock`) with removal of a barcode. _Done when:_ changes persist and show on the detail screen.
+- [x] **I33** — Add ADMIN-only archive / restore actions on the product detail. _Done when:_ hidden for STAFF; works for ADMIN.
 
 ### I-f. Quality and delivery
 
-- [ ] **I34** — Add connectivity detection with a visible offline banner. _Done when:_ the banner appears and clears as the network drops and returns.
-- [ ] **I35** — Add safe retry for failed stock mutations. _Done when:_ a dropped request can be retried with the same idempotency key without double-counting.
-- [ ] **I36** — Add `eas.json` with a development and an internal-distribution profile and document the steps in `docs/mobile.md`. _Done when:_ an internal build can be produced following the doc.
-- [ ] **I37** — Add app icons and splash screen, and set the app name and bundle identifiers. _Needs:_ the name and identifiers confirmed first (spec open question 1); ask the user. _Done when:_ assets appear in a build.
+- [x] **I34** — Add connectivity detection with a visible offline banner. _Done when:_ the banner appears and clears as the network drops and returns.
+- [x] **I35** — Add safe retry for failed stock mutations. _Done when:_ a dropped request can be retried with the same idempotency key without double-counting.
+- [x] **I36** — Add `eas.json` with a development and an internal-distribution profile and document the steps in `docs/mobile.md`. _Done when:_ an internal build can be produced following the doc.
+- [x] **I37** — Add app icons and splash screen, and set the app name. The bundle identifier and Android package (`com.laszlomocsy.stockroom`) were confirmed and set in I36. _Needs:_ the name confirmed first (spec open question 1); ask the user. _Done when:_ assets appear in a build.
 
 ## J. Web app (minimal)
 

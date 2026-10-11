@@ -2,8 +2,8 @@
 
 |             |                                                         |
 | ----------- | ------------------------------------------------------- |
-| **Status**  | Draft v0.9                                              |
-| **Date**    | 2026-10-10                                              |
+| **Status**  | Draft v0.10                                             |
+| **Date**    | 2026-10-11                                              |
 | **License** | AGPL-3.0 (see [Decisions](#16-decisions-and-rationale)) |
 
 > This document is versioned in itself. See the [Changelog](#19-changelog) at the bottom for what changed in each revision.
@@ -587,7 +587,7 @@ A managed offering for non-technical customers is planned and is **not** a separ
 
 ## 17. Open Questions
 
-1. **Naming/branding:** confirm "Stockroom" is free of conflicts (trademark, package names, domain, GHCR org, app store names).
+1. **Naming/branding:** the mobile app is named "Stockroom", with the bundle identifier and Android package `com.laszlomocsy.stockroom` (confirmed). Still to check that "Stockroom" is free of conflicts: trademark, package names, domain, GHCR org, app store names.
 2. **Languages:** UI languages needed on day one (English, Hungarian)?
 3. **Valuation:** is cost/value tracking needed, or counts only? (Currently P1.)
 4. **Labels:** do the products already carry barcodes, or must Stockroom generate and print labels earlier than M3?
@@ -609,6 +609,10 @@ A managed offering for non-technical customers is planned and is **not** a separ
 ## 19. Changelog
 
 Versions of this document. Newest first.
+
+### v0.10 — 2026-10-11
+
+- **Mobile app identity:** the app's name ("Stockroom") and its bundle identifier and Android package (`com.laszlomocsy.stockroom`) are confirmed; checking the name for conflicts stays open (section 17, question 1).
 
 ### v0.9 — 2026-10-10
 

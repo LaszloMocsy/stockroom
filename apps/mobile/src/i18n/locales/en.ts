@@ -1,0 +1,427 @@
+/**
+ * The app's English text, the source for every other language. Keys group text by where it appears;
+ * `{{name}}` marks a value filled in at run time.
+ */
+export const en = {
+  app: {
+    name: "Stockroom",
+  },
+  common: {
+    cancel: "Cancel",
+    retry: "Try again",
+    retrying: "Loading…",
+  },
+  tabs: {
+    home: "Home",
+    products: "Products",
+    scan: "Scan",
+    settings: "Settings",
+  },
+  connect: {
+    title: "Connect to server",
+    intro:
+      "Enter the address of your Stockroom server. Your administrator can tell you what it is.",
+    addressLabel: "Server address",
+    addressPlaceholder: "stock.example.com",
+    submit: "Connect",
+    connecting: "Connecting…",
+    errors: {
+      malformed:
+        "This is not a server address. Enter one like stock.example.com or https://stock.example.com.",
+      insecure: "{{url}} is not encrypted. Use the server's https:// address.",
+      unreachable:
+        "Cannot reach {{url}}. Check the address and your network connection.",
+      serverError:
+        "The server at {{url}} answered with an error (HTTP {{status}}). Try again later.",
+      notStockroom: "{{url}} is not a Stockroom server. Check the address.",
+      appOutdated:
+        "{{url}} needs a newer version of the app than {{clientVersion}}. Please update the app.",
+      serverOutdated:
+        "The server at {{url}} is outdated. Ask your administrator to update it.",
+      saveFailed: "The server address could not be saved. Try again.",
+    },
+  },
+  login: {
+    title: "Sign in",
+    intro: "Sign in to {{serverUrl}}.",
+    usernameLabel: "Username",
+    passwordLabel: "Password",
+    submit: "Sign in",
+    submitting: "Signing in…",
+    changeServer: "Use a different server",
+    errors: {
+      required: "This is required.",
+      invalidCredentials: "The username or password is wrong.",
+      lockedOut_one: "Too many wrong passwords. Try again in {{count}} minute.",
+      lockedOut_other:
+        "Too many wrong passwords. Try again in {{count}} minutes.",
+      rateLimited_one: "Too many attempts. Try again in {{count}} minute.",
+      rateLimited_other: "Too many attempts. Try again in {{count}} minutes.",
+      serverError:
+        "The server could not sign you in (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  setup: {
+    title: "Set up Stockroom",
+    intro:
+      "This server has no accounts yet. Create the first administrator account; you can add other people later.",
+    displayNameLabel: "Your name",
+    displayNameHint: "Shown next to the changes you make.",
+    usernameLabel: "Username",
+    usernameHint: "Letters, digits, and - . _ @ +",
+    passwordLabel: "Password",
+    passwordHint: "At least {{min}} characters.",
+    repeatedPasswordLabel: "Repeat password",
+    submit: "Create account",
+    submitting: "Creating account…",
+    errors: {
+      required: "This is required.",
+      usernameCharacters: "Use only letters, digits, and - . _ @ +",
+      passwordTooShort: "Use at least {{min}} characters.",
+      passwordsDiffer: "The passwords do not match.",
+      alreadyCompleted: "This server has already been set up.",
+      rateLimited: "Too many attempts. Wait a minute and try again.",
+      serverError:
+        "The server could not create the account (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  compatibility: {
+    title: "Update needed",
+    appOutdated: "Please update the app. This server needs a newer version.",
+    serverOutdated:
+      "This server is outdated. Ask your administrator to update it.",
+    versions:
+      "App {{clientVersion}}, server {{serverVersion}} (API {{apiVersion}})",
+    retry: "Try again",
+    checking: "Checking…",
+  },
+  settings: {
+    accountHeading: "Account",
+    signedInAs: "Signed in as {{name}} ({{username}})",
+    signOut: "Sign out",
+    signingOut: "Signing out…",
+    serverHeading: "Server",
+    changeServer: "Change server",
+    changingServer: "Changing server…",
+    changeServerTitle: "Change server?",
+    changeServerMessage:
+      "You will be signed out of {{serverUrl}}, and the app will ask for a server address again.",
+  },
+  home: {
+    addStock: "Add stock",
+    removeStock: "Remove stock",
+    summaryHeading: "Overview",
+    totalProducts: "Products",
+    totalUnits: "Units on hand",
+    lowStockCount: "Low on stock",
+    outOfStockCount: "Out of stock",
+    number: "{{value, number}}",
+    summaryFailed: "The overview could not be loaded.",
+    lowStockHeading: "Low on stock",
+    noLowStock: "No products are low on stock.",
+    seeAllLowStock: "See all products low on stock",
+    lowStockFailed: "The products low on stock could not be loaded.",
+  },
+  products: {
+    searchLabel: "Search",
+    searchPlaceholder: "Name, SKU, or barcode",
+    newProduct: "New product",
+    none: "There are no products yet.",
+    noMatches: "No products match “{{search}}”.",
+    loadFailed: "The products could not be loaded.",
+    loadMoreFailed: "More products could not be loaded.",
+  },
+  productRow: {
+    quantity: "{{quantity, number}} on hand",
+    quantityAndMinimum:
+      "{{quantity, number}} on hand · minimum {{minStock, number}}",
+  },
+  lowStock: {
+    title: "Low on stock",
+    none: "No products are low on stock.",
+  },
+  product: {
+    title: "Product",
+    number: "{{value, number}}",
+    onHand: "On hand",
+    archived: "This product is archived.",
+    sku: "SKU",
+    minStock: "Minimum stock",
+    noMinStock: "None",
+    barcodes: "Barcodes",
+    noBarcodes: "None",
+    description: "Description",
+    notFound: "This product does not exist.",
+    historyHeading: "History",
+    noHistory: "No stock movements yet.",
+    historyFailed: "The history could not be loaded.",
+    moreHistoryFailed: "More history could not be loaded.",
+    loadFailed: "The product could not be loaded.",
+    addStock: "Add stock",
+    removeStock: "Remove stock",
+    setCount: "Set count",
+    edit: "Edit",
+    editLabel: "Edit product",
+  },
+  archive: {
+    archive: {
+      button: "Archive product",
+      pending: "Archiving…",
+      hint: "Archiving hides the product from the lists and search. Its stock and history stay.",
+      done: "Archived {{name}}.",
+      failed:
+        "The server could not archive the product (HTTP {{status}}). Try again.",
+    },
+    restore: {
+      button: "Restore product",
+      pending: "Restoring…",
+      hint: "Restoring shows the product in the lists and search again.",
+      done: "Restored {{name}}.",
+      failed:
+        "The server could not restore the product (HTTP {{status}}). Try again.",
+    },
+    confirmTitle: "Archive product?",
+    confirmMessage:
+      "Archive {{name}}? It will no longer show in the lists and search. Its stock and history stay, and an administrator can restore it.",
+    errors: {
+      forbidden: "Only administrators can archive and restore products.",
+      notFound: "This product no longer exists.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  editProduct: {
+    title: "Edit product",
+    nameLabel: "Name",
+    descriptionLabel: "Description (optional)",
+    minStockLabel: "Minimum stock (optional)",
+    minStockHint:
+      "The product counts as low on stock at or below this. Leave empty for no minimum.",
+    skuLabel: "SKU",
+    skuHint: "The SKU cannot be changed.",
+    barcodesHeading: "Barcodes",
+    noBarcodes: "This product has no barcodes.",
+    barcodesHint: "Removing a barcode takes effect at once.",
+    removeBarcode: "Remove",
+    removeBarcodeLabel: "Remove barcode {{barcode}}",
+    removingBarcode: "Removing barcode {{barcode}}…",
+    removeBarcodeTitle: "Remove barcode?",
+    removeBarcodeMessage:
+      "Remove {{barcode}} from {{name}}? Scanning it will no longer find this product.",
+    submit: "Save changes",
+    submitting: "Saving…",
+    saved: "Saved {{name}}.",
+    errors: {
+      required: "This is required.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooLarge: "Enter at most {{max, number}}.",
+      notFound: "This product no longer exists.",
+      barcodeGone: "This barcode was already removed.",
+      saveFailed:
+        "The server could not save the changes (HTTP {{status}}). Try again.",
+      removeBarcodeFailed:
+        "The server could not remove the barcode (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  createProduct: {
+    title: "New product",
+    nameLabel: "Name",
+    skuLabel: "SKU (optional)",
+    skuHint: "Leave empty to have one generated.",
+    minStockLabel: "Minimum stock (optional)",
+    minStockHint: "The product counts as low on stock at or below this.",
+    barcodeLabel: "Barcode (optional)",
+    initialQuantityLabel: "Units on hand (optional)",
+    initialQuantityHint: "How many you have now. Leave empty for none.",
+    submit: "Create product",
+    submitting: "Creating product…",
+    errors: {
+      required: "This is required.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooLarge: "Enter at most {{max, number}}.",
+      skuTaken: "Another product already has this SKU.",
+      barcodeTaken: "Another product already has this barcode.",
+      serverError:
+        "The server could not create the product (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  attachBarcode: {
+    title: "Attach barcode",
+    intro: "Pick the product that has the barcode {{barcode}}.",
+    noBarcode: "There is no barcode to attach. Scan one first.",
+    confirmTitle: "Attach barcode?",
+    confirmMessage:
+      "Attach {{barcode}} to {{name}} ({{sku}})? Scanning it will then open this product.",
+    attach: "Attach",
+    attaching: "Attaching {{barcode}}…",
+    openOwner: "Open that product",
+    errors: {
+      barcodeTaken: "Another product already has the barcode {{barcode}}.",
+      notFound: "{{name}} no longer exists. Pick another product.",
+      serverError:
+        "The server could not attach the barcode (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  movement: {
+    types: {
+      receive: "Added",
+      issue: "Removed",
+      adjust: "Count set",
+      initial: "Initial stock",
+      void: "Void",
+    },
+    reasons: {
+      purchase: "Purchase",
+      sale: "Sale",
+      return: "Return",
+      damaged: "Damaged",
+      lost: "Lost",
+      found: "Found",
+      correction: "Correction",
+      count: "Count",
+      other: "Other",
+    },
+    voided: "(voided)",
+    deltaIn: "+{{value, number}}",
+    deltaOut: "−{{value, number}}",
+    reasonAndActor: "{{reason}} · {{actor}}",
+    whenAndAfter:
+      "{{when, datetime(dateStyle: medium; timeStyle: short)}} · {{quantity, number}} on hand after",
+  },
+  quantity: {
+    decrease: "One fewer",
+    increase: "One more",
+    errors: {
+      required: "Enter how many.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooSmall: "Enter at least {{min, number}}.",
+      tooLarge: "Enter at most {{max, number}}.",
+    },
+  },
+  stockSheet: {
+    onHand: "{{sku}} · {{quantity, number}} on hand",
+    reasonLabel: "Reason",
+    noteLabel: "Note (optional)",
+    submit: "Save",
+    submitting: "Saving…",
+    receive: {
+      title: "Add stock",
+      quantityLabel: "Units to add",
+      serverError:
+        "The server could not add the stock (HTTP {{status}}). Try again.",
+    },
+    issue: {
+      title: "Remove stock",
+      quantityLabel: "Units to remove",
+      serverError:
+        "The server could not remove the stock (HTTP {{status}}). Try again.",
+    },
+    adjust: {
+      title: "Set count",
+      quantityLabel: "Counted quantity",
+      change:
+        "Changes {{previous, number}} on hand to {{count, number}} ({{delta}}).",
+      noChange:
+        "Matches the {{previous, number}} on hand, so nothing will be recorded.",
+      quantityChanged:
+        "The quantity changed from {{expected, number}} to {{current, number}} while you were counting. Check your count, then save again to confirm it.",
+      serverError:
+        "The server could not set the count (HTTP {{status}}). Try again.",
+    },
+    errors: {
+      insufficientStock_zero: "There are none on hand to remove.",
+      insufficientStock_one: "Only 1 is on hand. Remove at most 1.",
+      insufficientStock_other:
+        "Only {{count, number}} are on hand. Remove at most {{count, number}}.",
+      notFound: "This product no longer exists.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
+  },
+  quickStock: {
+    receive: {
+      label: "Add one",
+      unreachable: "Could not add 1. Check your network connection.",
+    },
+    issue: {
+      label: "Remove one",
+      unreachable: "Could not remove 1. Check your network connection.",
+    },
+    errors: {
+      serverError: "The server could not change the stock (HTTP {{status}}).",
+    },
+  },
+  movementToast: {
+    received:
+      "Added {{units, number}} to {{name}}. {{quantity, number}} on hand.",
+    issued:
+      "Removed {{units, number}} from {{name}}. {{quantity, number}} on hand.",
+    counted: "Set {{name}} to {{quantity, number}} on hand.",
+    undo: "Undo",
+    undoing: "Undoing…",
+    undone: "Undone. {{name}} has {{quantity, number}} on hand.",
+    errors: {
+      undoUnreachable: "Could not undo. Check your network connection.",
+      undoWindowExpired:
+        "It is too late to undo this. Ask an administrator to reverse it.",
+      alreadyUndone: "This was already undone.",
+      undoInsufficientStock:
+        "Cannot undo: the units added are no longer on hand.",
+      undoServerError: "The server could not undo it (HTTP {{status}}).",
+    },
+  },
+  stock: {
+    lowStock: "Low on stock",
+    outOfStock: "Out of stock",
+  },
+  scanner: {
+    hint: "Point the camera at a barcode.",
+    permissionNeeded: "Stockroom needs the camera to scan barcodes.",
+    allowCamera: "Allow camera",
+    permissionDenied:
+      "Stockroom cannot use the camera. To scan barcodes, allow camera access in Settings.",
+    openSettings: "Open Settings",
+  },
+  scan: {
+    receiveTitle: "Add stock",
+    receiveHint: "Scan a product to add stock to it.",
+    issueTitle: "Remove stock",
+    issueHint: "Scan a product to remove stock from it.",
+    lookingUp: "Looking up {{barcode}}…",
+    lookUpFailed: "The barcode {{barcode}} could not be looked up.",
+  },
+  unknownBarcode: {
+    title: "No product found",
+    message: "No product has the barcode {{barcode}}.",
+    createProduct: "Create product",
+    attachToExisting: "Attach to existing product",
+  },
+  serverStatus: {
+    noServer: "No server is set.",
+    connecting: "Connecting to {{serverUrl}}…",
+    connected:
+      "Connected to {{serverUrl}}: server {{serverVersion}}, API {{apiVersion}}",
+    unreachable: "Cannot reach {{serverUrl}}: {{message}}",
+  },
+  offline: {
+    message: "You're offline. Changes can't be saved until you're back online.",
+    backOnline: "You're back online.",
+  },
+} as const;
+
+type Strings<T> = {
+  [Key in keyof T]: T[Key] extends string ? string : Strings<T[Key]>;
+};
+
+/** The shape every language follows: the same keys as English, so a missing key fails the typecheck. */
+export type Translations = Strings<typeof en>;

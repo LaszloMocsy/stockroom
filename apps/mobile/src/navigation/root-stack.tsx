@@ -1,0 +1,103 @@
+import { Stack } from "expo-router";
+import { useTranslation } from "react-i18next";
+
+import { useServerUrl, useSignedIn } from "@/api/provider";
+import { useServerInfo } from "@/api/server-info";
+import { compatibilityWith } from "@/compatibility/compatibility";
+
+/**
+ * The app's screens, each available only in the state it belongs to: the Connect screen until a server
+ * is stored, then the "update needed" screen while the app and the server cannot work together, the
+ * setup screen while the server has no users, the login screen until the user signs in, and then the
+ * tabs, with the screens they open (such as a product) above them.
+ *
+ * Until the server's `/info` arrives, or when it fails, the app behaves as if the server were compatible
+ * and set up, so an app that cannot reach its server stays usable and its screens show their own errors.
+ */
+export function RootStack() {
+  const { t } = useTranslation();
+  const hasServer = useServerUrl() !== null;
+  const { data: info } = useServerInfo();
+  const compatibility = info ? compatibilityWith(info) : null;
+  const compatible = compatibility === null || compatibility === "ok";
+  const setupRequired = info?.setup_required === true;
+  const ready = hasServer && compatible && !setupRequired;
+  const signedIn = useSignedIn();
+
+  return (
+    <Stack>
+      <Stack.Protected guard={ready && signedIn}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="product/[id]"
+          options={{ title: t("product.title") }}
+        />
+        <Stack.Screen
+          name="product/new"
+          options={{ title: t("createProduct.title") }}
+        />
+        <Stack.Screen
+          name="product/edit"
+          options={{ title: t("editProduct.title") }}
+        />
+        <Stack.Screen
+          name="attach-barcode"
+          options={{ title: t("attachBarcode.title") }}
+        />
+        <Stack.Screen
+          name="unknown-barcode"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="add-stock"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="remove-stock"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="set-count"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: "fitToContents",
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen name="scan-stock" />
+        <Stack.Screen
+          name="low-stock"
+          options={{ title: t("lowStock.title") }}
+        />
+      </Stack.Protected>
+      <Stack.Protected guard={ready && !signedIn}>
+        <Stack.Screen name="login" />
+      </Stack.Protected>
+      <Stack.Protected guard={hasServer && compatible && setupRequired}>
+        <Stack.Screen name="setup" />
+      </Stack.Protected>
+      <Stack.Protected guard={hasServer && !compatible}>
+        <Stack.Screen name="update-required" />
+      </Stack.Protected>
+      <Stack.Protected guard={!hasServer}>
+        <Stack.Screen name="connect" />
+      </Stack.Protected>
+    </Stack>
+  );
+}

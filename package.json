@@ -11,7 +11,8 @@
   },
   "scripts": {
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "mobile": "pnpm --filter @stockroom/api-client build && pnpm --filter @stockroom/mobile start"
   },
   "devDependencies": {
     "prettier": "^3.9.9"

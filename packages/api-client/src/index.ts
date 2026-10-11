@@ -16,6 +16,7 @@ export {
   type Compatibility,
   type InfoResponse,
 } from "./compatibility.js";
+export { ApiResponseError, unwrap } from "./errors.js";
 
 /** A schema from the API contract by name, for example `Schema<"ProductResponse">`. */
 export type Schema<Name extends keyof components["schemas"]> =

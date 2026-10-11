@@ -64,6 +64,31 @@ jobs:
 
       - run: pnpm --filter api-client build
 
+  mobile:
+    name: Mobile app
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The app imports the client's built output, whose types are generated
+      # from the committed OpenAPI snapshot.
+      - run: pnpm --filter api-client build
+
+      - run: pnpm --filter mobile typecheck
+
+      - run: pnpm --filter mobile lint
+
+      - run: pnpm --filter mobile test --ci
+
   server:
     name: .NET build and test
     # A full VM: the integration tests start PostgreSQL in Docker through

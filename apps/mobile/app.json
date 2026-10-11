@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Stockroom",
+    "slug": "stockroom",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "stockroom",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.laszlomocsy.stockroom",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.laszlomocsy.stockroom",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a5cc2",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
+        "expo-localization",
+        {
+          "supportedLocales": ["en"]
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Stockroom uses the camera to scan barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": false
+          },
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#0a5cc2"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3a6b9b1d-13b2-4644-96b4-9347f6ec82f3"
+      }
+    },
+    "owner": "laszlomocsy"
+  }
+}
