@@ -19,6 +19,7 @@ export const MaxQuantity = 1_000_000;
 export const MaxLengths = {
   name: 200,
   sku: 64,
+  description: 2000,
   barcode: 512,
 } as const;
 
@@ -75,5 +76,62 @@ export function newProductRequest(
     ...(minStock && { min_stock: Number(minStock) }),
     ...(values.barcode.trim() && { barcode: values.barcode }),
     ...(initialQuantity && { initial_quantity: Number(initialQuantity) }),
+  };
+}
+
+export interface ProductEditValues {
+  name: string;
+  description: string;
+  minStock: string;
+}
+
+export type ProductEditField = keyof ProductEditValues;
+
+/** The edit form's values for `product`, as it starts. */
+export function productEditValues(
+  product: Schema<"ProductResponse">,
+): ProductEditValues {
+  return {
+    name: product.name,
+    description: product.description ?? "",
+    minStock: product.min_stock === null ? "" : String(product.min_stock),
+  };
+}
+
+/**
+ * Checks the edit form before it is sent, as `validateNewProduct` does: the name is required, and the
+ * minimum is an optional whole number.
+ */
+export function validateProductEdit(
+  values: ProductEditValues,
+): Partial<Record<ProductEditField, NewProductFieldError>> {
+  const errors: Partial<Record<ProductEditField, NewProductFieldError>> = {};
+  if (!values.name.trim()) {
+    errors.name = "required";
+  }
+  const minStock = validateQuantity(values.minStock);
+  if (minStock) {
+    errors.minStock = minStock;
+  }
+  return errors;
+}
+
+/**
+ * The changes from `product` to valid form values, as a merge patch: fields that did not change are
+ * left out, so that someone else's change to them meanwhile stays, and a blank description or minimum
+ * is `null`, which removes it. Empty when nothing changed.
+ */
+export function productUpdateRequest(
+  values: ProductEditValues,
+  product: Schema<"ProductResponse">,
+): Schema<"UpdateProductRequest"> {
+  const name = values.name.trim();
+  const description = values.description.trim() || null;
+  const minStockText = values.minStock.trim();
+  const minStock = minStockText === "" ? null : Number(minStockText);
+  return {
+    ...(name !== product.name && { name }),
+    ...(description !== product.description && { description }),
+    ...(minStock !== product.min_stock && { min_stock: minStock }),
   };
 }

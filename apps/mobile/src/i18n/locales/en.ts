@@ -164,6 +164,43 @@ export const en = {
     addStock: "Add stock",
     removeStock: "Remove stock",
     setCount: "Set count",
+    edit: "Edit",
+    editLabel: "Edit product",
+  },
+  editProduct: {
+    title: "Edit product",
+    nameLabel: "Name",
+    descriptionLabel: "Description (optional)",
+    minStockLabel: "Minimum stock (optional)",
+    minStockHint:
+      "The product counts as low on stock at or below this. Leave empty for no minimum.",
+    skuLabel: "SKU",
+    skuHint: "The SKU cannot be changed.",
+    barcodesHeading: "Barcodes",
+    noBarcodes: "This product has no barcodes.",
+    barcodesHint: "Removing a barcode takes effect at once.",
+    removeBarcode: "Remove",
+    removeBarcodeLabel: "Remove barcode {{barcode}}",
+    removingBarcode: "Removing barcode {{barcode}}…",
+    removeBarcodeTitle: "Remove barcode?",
+    removeBarcodeMessage:
+      "Remove {{barcode}} from {{name}}? Scanning it will no longer find this product.",
+    submit: "Save changes",
+    submitting: "Saving…",
+    saved: "Saved {{name}}.",
+    errors: {
+      required: "This is required.",
+      wholeNumber: "Enter a whole number, such as 12.",
+      tooLarge: "Enter at most {{max, number}}.",
+      notFound: "This product no longer exists.",
+      barcodeGone: "This barcode was already removed.",
+      saveFailed:
+        "The server could not save the changes (HTTP {{status}}). Try again.",
+      removeBarcodeFailed:
+        "The server could not remove the barcode (HTTP {{status}}). Try again.",
+      unreachable:
+        "Cannot reach the server. Check your network connection and try again.",
+    },
   },
   createProduct: {
     title: "New product",

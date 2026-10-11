@@ -37,6 +37,10 @@ export function RootStack() {
           options={{ title: t("createProduct.title") }}
         />
         <Stack.Screen
+          name="product/edit"
+          options={{ title: t("editProduct.title") }}
+        />
+        <Stack.Screen
           name="attach-barcode"
           options={{ title: t("attachBarcode.title") }}
         />
