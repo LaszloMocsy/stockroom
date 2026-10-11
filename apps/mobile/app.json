@@ -8,9 +8,11 @@
     "scheme": "stockroom",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.laszlomocsy.stockroom",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.laszlomocsy.stockroom",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -52,6 +54,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3a6b9b1d-13b2-4644-96b4-9347f6ec82f3"
+      }
+    },
+    "owner": "laszlomocsy"
   }
 }

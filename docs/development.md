@@ -135,6 +135,8 @@ Only development builds connect to `http://` servers anywhere; release builds ac
 
 All text the app shows comes from translation keys ([i18next](https://www.i18next.com) with `react-i18next`): use `const { t } = useTranslation()` and `t("home.summaryHeading")` rather than writing text in components. English, the source language, is in [`apps/mobile/src/i18n/locales/en.ts`](../apps/mobile/src/i18n/locales/en.ts). Keys and interpolation values are typed from it, so a misspelt key fails the typecheck. The app uses the device's language when it has it, and English otherwise; [`src/i18n/index.ts`](../apps/mobile/src/i18n/index.ts) explains how to add a language.
 
+To build an installable app, for testers or as a development build, see [Building the mobile app](mobile.md).
+
 Expo writes generated files to `apps/mobile/.expo/` and `apps/mobile/expo-env.d.ts`, including the types for typed routes. They are git-ignored; delete them if they get stale, or start with `pnpm mobile --clear`, which also clears Metro's cache.
 
 ## Run the tests
