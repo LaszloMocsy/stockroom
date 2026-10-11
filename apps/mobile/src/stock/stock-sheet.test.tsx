@@ -35,9 +35,16 @@ let product: Schema<"ProductResponse">;
 let movementResponse: (() => Response | Promise<Response>) | null;
 /** The movements sent, with their `Idempotency-Key`. */
 let sent: { body: Schema<"CreateStockMovementRequest">; key: string | null }[];
+/** The movements recorded by `Idempotency-Key`, which the server returns again for a retry. */
+let byKey: Map<string, Schema<"StockMovementResponse">>;
+/** Whether the connection loses the answer to the next movement the server records. */
+let loseNextAnswer: boolean;
 let fetch: jest.SpiedFunction<typeof globalThis.fetch>;
 
-/** Answers like the API, from `product`, which never has fewer than none on hand. */
+/**
+ * Answers like the API, from `product`, which never has fewer than none on hand. A movement with a key
+ * that recorded one returns that movement again and records nothing.
+ */
 async function serve(input: RequestInfo | URL): Promise<Response> {
   const request = input as Request;
   const route = `${request.method} ${new URL(request.url).pathname}`;
@@ -50,9 +57,14 @@ async function serve(input: RequestInfo | URL): Promise<Response> {
   }
   if (route === "POST /api/v1/stock/movements") {
     const body = (await request.json()) as Schema<"CreateStockMovementRequest">;
-    sent.push({ body, key: request.headers.get("Idempotency-Key") });
+    const key = request.headers.get("Idempotency-Key");
+    sent.push({ body, key });
     if (movementResponse) {
       return movementResponse();
+    }
+    const retried = key === null ? undefined : byKey.get(key);
+    if (retried) {
+      return Response.json(retried, { status: 201 });
     }
     if (body.type === "adjust") {
       if (
@@ -81,9 +93,15 @@ async function serve(input: RequestInfo | URL): Promise<Response> {
       });
     }
     product = { ...product, quantity: product.quantity + delta };
-    return Response.json(movement(body, delta, product.quantity), {
-      status: 201,
-    });
+    const recorded = movement(body, delta, product.quantity);
+    if (key !== null) {
+      byKey.set(key, recorded);
+    }
+    if (loseNextAnswer) {
+      loseNextAnswer = false;
+      throw new TypeError("Network request failed");
+    }
+    return Response.json(recorded, { status: 201 });
   }
   return new Response(null, { status: 404 });
 }
@@ -130,6 +148,8 @@ beforeEach(() => {
   };
   movementResponse = null;
   sent = [];
+  byKey = new Map();
+  loseNextAnswer = false;
   fetch = jest.spyOn(globalThis, "fetch").mockImplementation(serve);
 });
 
@@ -286,6 +306,26 @@ describe("StockSheet adding stock", () => {
     await save();
 
     expect(await screen.findByText("6")).toBeOnTheScreen();
+    expect(sent.map(({ key }) => key)).toEqual(["key-1", "key-1"]);
+  });
+
+  it("counts the units once when the server recorded them but its answer was lost", async () => {
+    loseNextAnswer = true;
+    await openSheet();
+
+    await save();
+    expect(
+      await screen.findByText(
+        "Cannot reach the server. Check your network connection and try again.",
+      ),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(6);
+    await save();
+
+    expect(
+      await screen.findByText("Added 1 to Cable ties. 6 on hand."),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(6);
     expect(sent.map(({ key }) => key)).toEqual(["key-1", "key-1"]);
   });
 

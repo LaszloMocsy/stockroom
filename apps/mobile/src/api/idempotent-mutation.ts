@@ -30,8 +30,30 @@ export interface IdempotentMutationOptions<
   UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
   "mutationFn"
 > {
-  /** Sends `variables` with `idempotencyKey` as the request's `Idempotency-Key` header. */
-  mutationFn: (variables: TVariables, idempotencyKey: string) => Promise<TData>;
+  /**
+   * Sends `variables` with `idempotencyKey` as the request's `Idempotency-Key` header, and `signal` as the
+   * request's signal, which gives up on the request when it takes too long (see `RequestTimeoutMs`).
+   */
+  mutationFn: (
+    variables: TVariables,
+    idempotencyKey: string,
+    signal: AbortSignal,
+  ) => Promise<TData>;
+}
+
+/**
+ * How long a request may go unanswered before it counts as dropped and fails, so the user can send it
+ * again. Without a limit, a request whose connection dropped could stay pending indefinitely (React
+ * Native's fetch has none on Android), with nothing to retry.
+ */
+export const RequestTimeoutMs = 20_000;
+
+/** A request that went unanswered for `RequestTimeoutMs`. The server may or may not have applied it. */
+export class RequestTimeoutError extends Error {
+  constructor() {
+    super("The server did not answer in time.");
+    this.name = "RequestTimeoutError";
+  }
 }
 
 /**
@@ -43,6 +65,9 @@ export interface IdempotentMutationOptions<
  * failed request did reach the server and only its answer was lost, the server then returns what it
  * recorded instead of recording it again. TanStack Query's own retries (`retry`) send the same key too.
  * After a success, or with changed variables, the next `mutate` is a new action again.
+ *
+ * A request that goes unanswered for `RequestTimeoutMs` fails with a `RequestTimeoutError`, as a dropped
+ * one does, and can be retried the same way.
  */
 export function useIdempotentMutation<
   TData = unknown,
@@ -72,15 +97,19 @@ export function useIdempotentMutation<
   >({
     ...options,
     mutationFn: async ({ variables, idempotencyKey }) => {
+      const abort = new AbortController();
+      const timeout = setTimeout(() => abort.abort(), RequestTimeoutMs);
       try {
-        const data = await mutationFn(variables, idempotencyKey);
+        const data = await mutationFn(variables, idempotencyKey, abort.signal);
         if (lastFailure.current?.idempotencyKey === idempotencyKey) {
           lastFailure.current = null;
         }
         return data;
       } catch (error) {
         lastFailure.current = { hash: hashOf(variables), idempotencyKey };
-        throw error;
+        throw abort.signal.aborted ? new RequestTimeoutError() : error;
+      } finally {
+        clearTimeout(timeout);
       }
     },
     ...(onMutate && {

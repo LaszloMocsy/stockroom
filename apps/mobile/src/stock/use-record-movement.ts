@@ -26,11 +26,16 @@ export function useRecordMovement() {
   const client = useApiClient();
   const { setQuantity, refresh } = useStockCache();
   return useIdempotentMutation({
-    mutationFn: (movement: NewMovement, idempotencyKey: string) =>
+    mutationFn: (
+      movement: NewMovement,
+      idempotencyKey: string,
+      signal: AbortSignal,
+    ) =>
       unwrap(
         client.POST("/api/v1/stock/movements", {
           params: { header: { "Idempotency-Key": idempotencyKey } },
           body: movement,
+          signal,
         }),
       ),
     onSuccess: (movement) => {
@@ -65,7 +70,11 @@ export function useVoidMovement() {
   const client = useOptionalApiClient();
   const { setQuantity, refresh } = useStockCache();
   return useIdempotentMutation({
-    mutationFn: (movementId: string, idempotencyKey: string) => {
+    mutationFn: (
+      movementId: string,
+      idempotencyKey: string,
+      signal: AbortSignal,
+    ) => {
       if (!client) {
         return Promise.reject(new Error("No server is set."));
       }
@@ -75,6 +84,7 @@ export function useVoidMovement() {
             path: { id: movementId },
             header: { "Idempotency-Key": idempotencyKey },
           },
+          signal,
         }),
       );
     },

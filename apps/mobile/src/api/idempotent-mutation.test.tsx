@@ -3,7 +3,11 @@ import { notifyManager, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
-import { useIdempotentMutation } from "./idempotent-mutation";
+import {
+  RequestTimeoutError,
+  RequestTimeoutMs,
+  useIdempotentMutation,
+} from "./idempotent-mutation";
 import { createQueryClient } from "./query-client";
 
 // Numbered keys, so a test can tell which action a key was made for.
@@ -47,7 +51,10 @@ async function renderMutation(
     onSuccess?: (data: string, variables: Receive) => void;
   } = {},
 ) {
-  const send = jest.fn((_: Receive, key: string) => Promise.resolve(key));
+  const send = jest.fn(
+    (_: Receive, key: string, _signal: AbortSignal): Promise<string> =>
+      Promise.resolve(key),
+  );
   const rendered = await renderHook(
     () =>
       useIdempotentMutation({
@@ -118,6 +125,41 @@ describe("useIdempotentMutation", () => {
     await mutate({ product: "bolt", quantity: 3 });
 
     expect(sentKeys()).toEqual(["key-1", "key-2"]);
+  });
+
+  it("gives up on a request left unanswered, and retries it with its key", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick"] });
+    try {
+      const { send, mutate, result, sentKeys } = await renderMutation();
+      let signal: AbortSignal | undefined;
+      // Answers only by failing when given up on, as fetch does.
+      send.mockImplementationOnce((_, __, requestSignal) => {
+        signal = requestSignal;
+        return new Promise((_resolve, reject) =>
+          requestSignal.addEventListener("abort", () =>
+            reject(new Error("Aborted")),
+          ),
+        );
+      });
+      let failure: unknown;
+      await act(() => {
+        result.current.mutateAsync(twoBolts).catch((error: unknown) => {
+          failure = error;
+        });
+      });
+
+      await act(() => jest.advanceTimersByTime(RequestTimeoutMs - 1));
+      expect(signal?.aborted).toBe(false);
+      await act(() => jest.advanceTimersByTime(1));
+
+      expect(signal?.aborted).toBe(true);
+      expect(failure).toBeInstanceOf(RequestTimeoutError);
+      await mutate(twoBolts);
+      expect(sentKeys()).toEqual(["key-1", "key-1"]);
+      expect(result.current.data).toBe("key-1");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("sends TanStack Query's retries with the same key", async () => {

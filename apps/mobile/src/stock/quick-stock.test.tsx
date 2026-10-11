@@ -30,17 +30,42 @@ let movements: Map<string, Movement>;
 let overrides: Record<string, () => Response | Promise<Response>>;
 /** The requests sent that change stock, with their `Idempotency-Key`. */
 let sent: { route: string; key: string | null }[];
+/** The movements recorded by `Idempotency-Key`, which the server returns again for a retry. */
+let byKey: Map<string, Movement>;
+/** Routes, as in `overrides`, whose next answer the connection loses after the server recorded it. */
+let losing: Set<string>;
 let fetch: jest.SpiedFunction<typeof globalThis.fetch>;
 
 const voidRoute = (id: string) => `POST /api/v1/stock/movements/${id}/void`;
 
-/** Answers like the API, from `product` and `movements`. */
+/**
+ * Answers like the API: a request with a key that recorded a movement returns that movement again and
+ * records nothing.
+ */
 async function serve(input: RequestInfo | URL): Promise<Response> {
   const request = input as Request;
   const route = `${request.method} ${new URL(request.url).pathname}`;
+  const key = request.headers.get("Idempotency-Key");
   if (request.method === "POST") {
-    sent.push({ route, key: request.headers.get("Idempotency-Key") });
+    sent.push({ route, key });
   }
+  const retried = key === null ? undefined : byKey.get(key);
+  if (retried) {
+    return Response.json(retried, { status: 201 });
+  }
+
+  const response = await answer(request, route);
+  if (key !== null && response.status === 201) {
+    byKey.set(key, (await response.clone().json()) as Movement);
+  }
+  if (losing.delete(route) || losing.delete(routePattern(route))) {
+    throw new TypeError("Network request failed");
+  }
+  return response;
+}
+
+/** Answers like the API, from `product` and `movements`, without regard to keys. */
+async function answer(request: Request, route: string): Promise<Response> {
   const override = overrides[route] ?? overrides[routePattern(route)];
   if (override) {
     return override();
@@ -126,6 +151,8 @@ beforeEach(() => {
   movements = new Map();
   overrides = {};
   sent = [];
+  byKey = new Map();
+  losing = new Set();
   fetch = jest.spyOn(globalThis, "fetch").mockImplementation(serve);
 });
 
@@ -272,5 +299,50 @@ describe("quick stock buttons", () => {
       await screen.findByText("Added 1 to Cable ties. 6 on hand."),
     ).toBeOnTheScreen();
     expect(sent.map(({ key }) => key)).toEqual(["key-1", "key-1"]);
+  });
+
+  it("adds one once when the server recorded it but its answer was lost", async () => {
+    losing.add("POST /api/v1/stock/movements");
+    await renderProduct();
+
+    await press("Add one");
+    expect(
+      await screen.findByText(
+        "Could not add 1. Check your network connection.",
+      ),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(6);
+    await press("Try again");
+
+    expect(
+      await screen.findByText("Added 1 to Cable ties. 6 on hand."),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(6);
+    expect(sent.map(({ key }) => key)).toEqual(["key-1", "key-1"]);
+  });
+
+  it("undoes once when the server voided it but its answer was lost", async () => {
+    await renderProduct();
+    await press("Add one");
+    await screen.findByText("Added 1 to Cable ties. 6 on hand.");
+    losing.add("POST /api/v1/stock/movements/{id}/void");
+
+    await press("Undo");
+    expect(
+      await screen.findByText("Could not undo. Check your network connection."),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(5);
+    await press("Try again");
+
+    // Not "already undone": the retry gets the void that the lost answer carried.
+    expect(
+      await screen.findByText("Undone. Cable ties has 5 on hand."),
+    ).toBeOnTheScreen();
+    expect(product.quantity).toBe(5);
+    expect(sent).toEqual([
+      { route: "POST /api/v1/stock/movements", key: "key-1" },
+      { route: voidRoute("movement-1"), key: "key-2" },
+      { route: voidRoute("movement-1"), key: "key-2" },
+    ]);
   });
 });
