@@ -156,7 +156,7 @@ async function renderAttach(
           <Stack />
         </AppProviders>
       ),
-      index: Scan,
+      index: () => <Scan />,
       "attach-barcode": AttachBarcodeScreen,
       "product/[id]": ProductScreen,
     },

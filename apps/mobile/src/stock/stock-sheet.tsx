@@ -1,7 +1,7 @@
 import { ApiResponseError, type Schema } from "@stockroom/api-client";
 import type { TFunction } from "i18next";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type TextInput,
 } from "react-native";
 
 import { serverFieldErrors } from "@/api/field-errors";
@@ -42,6 +43,14 @@ const Reasons: Record<StockSheetType, readonly Reason[]> = {
   adjust: ["count", "correction", "damaged", "lost", "found", "other"],
 };
 
+/** The stack's event for the end of the sheet sliding in or out, which the generic type leaves out. */
+interface SheetNavigation {
+  addListener(
+    type: "transitionEnd",
+    listener: (event: { data: { closing: boolean } }) => void,
+  ): () => void;
+}
+
 /** The server's longest note. */
 const MaxNoteLength = 2000;
 
@@ -71,6 +80,7 @@ export function StockSheet({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation<SheetNavigation>();
   const product = useProduct(productId);
   const record = useRecordMovement();
   const confirm = useConfirmMovement();
@@ -84,6 +94,20 @@ export function StockSheet({
   const [note, setNote] = useState("");
   // The quantity's error shows from the first attempt to save, not while the user is still typing.
   const [submitted, setSubmitted] = useState(false);
+  const quantityInput = useRef<TextInput>(null);
+
+  // The quantity is all a sheet needs, so it gets the keyboard once the sheet is open. Focusing it
+  // while the sheet still slides in (autoFocus) would leave its number unselected, so that typing
+  // added to it.
+  useEffect(
+    () =>
+      navigation.addListener("transitionEnd", (event) => {
+        if (!event.data.closing) {
+          quantityInput.current?.focus();
+        }
+      }),
+    [navigation],
+  );
   // The quantity a count replaces: what the user saw when the product loaded, or the newer quantity
   // the server answered with. Kept apart from the product, which may load again meanwhile.
   const [counted, setCounted] = useState<number | null>(null);
@@ -216,7 +240,9 @@ export function StockSheet({
         label={t(`stockSheet.${type}.quantityLabel`)}
         min={min}
         onChangeText={change(setQuantity)}
-        // Closes the keyboard, which would otherwise cover Save; the reason and note are optional.
+        ref={quantityInput}
+        // Save is behind the keyboard, so its Done saves. The reason and note can be set before.
+        onSubmitEditing={save}
         returnKeyType="done"
         submitBehavior="blurAndSubmit"
         value={quantity}

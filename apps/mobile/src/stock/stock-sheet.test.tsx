@@ -241,14 +241,25 @@ describe("StockSheet adding stock", () => {
     expect(sent).toEqual([]);
   });
 
-  it("closes the keyboard from the quantity's Done key, without saving", async () => {
+  it("saves from the quantity's Done key", async () => {
     const pathname = await openSheet();
-
     expect(quantity().props.returnKeyType).toBe("done");
-    expect(quantity().props.submitBehavior).toBe("blurAndSubmit");
+
+    await fireEvent.changeText(quantity(), "12");
     await fireEvent(quantity(), "submitEditing");
 
-    expect(pathname()).toBe("/add-stock");
+    expect(await screen.findByText("17")).toBeOnTheScreen();
+    expect(pathname()).toBe(`/product/${productId}`);
+    expect(sent.map(({ body }) => body.quantity)).toEqual([12]);
+  });
+
+  it("checks the quantity when its Done key is pressed", async () => {
+    await openSheet();
+
+    await fireEvent.changeText(quantity(), "0");
+    await fireEvent(quantity(), "submitEditing");
+
+    expect(screen.getByText("Enter at least 1.")).toBeOnTheScreen();
     expect(sent).toEqual([]);
   });
 

@@ -106,7 +106,7 @@ async function renderScan(): Promise<() => string> {
         <Stack />
       </AppProviders>
     ),
-    index: Scan,
+    index: () => <Scan />,
     "product/[id]": ProductScreen,
     "product/new": NewProductScreen,
     "attach-barcode": AttachBarcodeScreen,

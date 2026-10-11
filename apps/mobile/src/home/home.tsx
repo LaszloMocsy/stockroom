@@ -21,8 +21,9 @@ import { ProductRow } from "@/products/product-row";
 export const LowStockPreviewSize = 5;
 
 /**
- * The dashboard (spec 7.1): how many products and units there are, how many are low on stock or out of
- * stock, and the first few low-stock products. Pulling down reloads it; like any query, it also reloads
+ * The dashboard (spec 7.1): shortcuts that scan a product to add or remove stock (spec 5, flows 2 and
+ * 3), how many products and units there are, how many are low on stock or out of stock, and the first
+ * few low-stock products. Pulling down reloads it; like any query, it also reloads
  * when the app returns to the foreground.
  */
 export function Home() {
@@ -63,6 +64,7 @@ export function Home() {
       }
       testID="home"
     >
+      <StockShortcuts />
       <View style={styles.section}>
         <Text role="heading" style={styles.heading}>
           {t("home.summaryHeading")}
@@ -96,6 +98,38 @@ export function Home() {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+/**
+ * "Add stock" and "Remove stock", which open the scanner in that mode: receiving a delivery takes a tap
+ * here, a scan, the quantity, and Save (spec 1.1).
+ */
+function StockShortcuts() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  return (
+    <View style={styles.shortcuts}>
+      <View style={styles.shortcut}>
+        <Button
+          onPress={() =>
+            router.push({
+              pathname: "/scan-stock",
+              params: { type: "receive" },
+            })
+          }
+          title={t("home.addStock")}
+        />
+      </View>
+      <View style={styles.shortcut}>
+        <Button
+          onPress={() =>
+            router.push({ pathname: "/scan-stock", params: { type: "issue" } })
+          }
+          title={t("home.removeStock")}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -160,6 +194,13 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
+  },
+  shortcuts: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  shortcut: {
+    flex: 1,
   },
   heading: {
     fontSize: 20,

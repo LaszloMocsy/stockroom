@@ -112,6 +112,8 @@ export const en = {
       "You will be signed out of {{serverUrl}}, and the app will ask for a server address again.",
   },
   home: {
+    addStock: "Add stock",
+    removeStock: "Remove stock",
     summaryHeading: "Overview",
     totalProducts: "Products",
     totalUnits: "Units on hand",
@@ -327,6 +329,10 @@ export const en = {
     openSettings: "Open Settings",
   },
   scan: {
+    receiveTitle: "Add stock",
+    receiveHint: "Scan a product to add stock to it.",
+    issueTitle: "Remove stock",
+    issueHint: "Scan a product to remove stock from it.",
     lookingUp: "Looking up {{barcode}}…",
     lookUpFailed: "The barcode {{barcode}} could not be looked up.",
   },

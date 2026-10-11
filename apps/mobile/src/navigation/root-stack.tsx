@@ -76,6 +76,7 @@ export function RootStack() {
             headerShown: false,
           }}
         />
+        <Stack.Screen name="scan-stock" />
         <Stack.Screen
           name="low-stock"
           options={{ title: t("lowStock.title") }}

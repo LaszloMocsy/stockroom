@@ -10,12 +10,19 @@ import { productKey } from "@/products/use-products";
 
 import { BarcodeScanner } from "./barcode-scanner";
 
+/** What scanning a product opens: the sheet that adds stock to it, or the one that removes stock. */
+export type ScanMode = "receive" | "issue";
+
 /**
  * The Scan tab (spec 4.2): a scanned barcode is looked up and its product opens, archived ones
  * included. A barcode that no product has opens a sheet that offers to create a product with it or to
- * attach it to an existing one (spec 5, flow 4). The camera is off while another tab or screen is in front.
+ * attach it to an existing one (spec 5, flow 4). The camera is off while another tab or screen is in
+ * front, such as a sheet.
+ *
+ * With a `mode`, as Home's "Add stock" and "Remove stock" open it (spec 5, flows 2 and 3), the scanned
+ * product's sheet for that opens instead of the product, and closing it returns here for the next scan.
  */
-export function Scan() {
+export function Scan({ mode }: { mode?: ScanMode | undefined }) {
   const { t } = useTranslation();
   const client = useApiClient();
   const queryClient = useQueryClient();
@@ -39,7 +46,15 @@ export function Scan() {
     lookUp.mutate(barcode, {
       onSuccess: (product) => {
         lookUp.reset();
-        if (navigation.isFocused()) {
+        if (!navigation.isFocused()) {
+          return;
+        }
+        if (mode) {
+          router.push({
+            pathname: mode === "receive" ? "/add-stock" : "/remove-stock",
+            params: { id: product.id },
+          });
+        } else {
           router.push({
             pathname: "/product/[id]",
             params: { id: product.id },
@@ -85,6 +100,9 @@ export function Scan() {
 
   return (
     <View style={styles.container}>
+      {mode && (
+        <Text style={[styles.text, styles.hint]}>{t(`scan.${mode}Hint`)}</Text>
+      )}
       <BarcodeScanner onScan={scanned} paused={!focused} />
       {status && <View style={styles.status}>{status}</View>}
     </View>
@@ -96,6 +114,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   status: {
+    padding: 16,
+  },
+  hint: {
     padding: 16,
   },
   pending: {
